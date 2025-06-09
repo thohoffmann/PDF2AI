@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react'
-import { Upload, FileText, X, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { Upload, FileText, X, AlertCircle } from 'lucide-react'
+import { Button } from '../ui/button'
+import { Card, CardContent } from '../ui/card'
+import { DocumentIcon } from '../ui/DocumentIcon'
 
 interface PDFUploadProps {
   onFileSelect: (file: File) => void
@@ -13,6 +13,70 @@ interface PDFUploadProps {
 export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
+
+  // Enhanced PDF validation
+  const validatePDFFile = async (file: File): Promise<{ isValid: boolean; error?: string }> => {
+    // Check file extension
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      return { isValid: false, error: 'File must have .pdf extension' }
+    }
+
+    // Check MIME type
+    if (file.type !== 'application/pdf') {
+      return { isValid: false, error: 'Invalid file type. Please select a PDF file.' }
+    }
+
+    // Check file size (50MB limit)
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (file.size > maxSize) {
+      return { isValid: false, error: 'File size exceeds 50MB limit' }
+    }
+
+    // Check if file is empty
+    if (file.size === 0) {
+      return { isValid: false, error: 'File appears to be empty' }
+    }
+
+    // Basic PDF signature check
+    try {
+      const buffer = await file.slice(0, 8).arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      const signature = Array.from(bytes).map(b => String.fromCharCode(b)).join('')
+      
+      if (!signature.startsWith('%PDF-')) {
+        return { isValid: false, error: 'File does not appear to be a valid PDF' }
+      }
+    } catch (error) {
+      return { isValid: false, error: 'Unable to read file contents' }
+    }
+
+    return { isValid: true }
+  }
+
+  const processFile = async (file: File) => {
+    setIsProcessing(true)
+    setValidationError(null)
+
+    try {
+      const validation = await validatePDFFile(file)
+      
+      if (!validation.isValid) {
+        setValidationError(validation.error || 'Invalid PDF file')
+        setIsProcessing(false)
+        return
+      }
+
+      // Simulate processing time for better UX
+      setTimeout(() => {
+        onFileSelect(file)
+        setIsProcessing(false)
+      }, 800)
+    } catch (error) {
+      setValidationError('Error processing file. Please try again.')
+      setIsProcessing(false)
+    }
+  }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -29,29 +93,23 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
     setIsDragOver(false)
     
     const files = Array.from(e.dataTransfer.files)
-    const pdfFile = files.find(file => file.type === 'application/pdf')
+    if (files.length === 0) return
     
-    if (pdfFile) {
-      setIsProcessing(true)
-      setTimeout(() => {
-        onFileSelect(pdfFile)
-        setIsProcessing(false)
-      }, 500) // Simulate processing time
-    }
-  }, [onFileSelect])
+    const file = files[0] // Take the first file
+    processFile(file)
+  }, [])
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file && file.type === 'application/pdf') {
-      setIsProcessing(true)
-      setTimeout(() => {
-        onFileSelect(file)
-        setIsProcessing(false)
-      }, 500)
+    if (file) {
+      processFile(file)
     }
-  }, [onFileSelect])
+    // Reset input
+    e.target.value = ''
+  }, [])
 
   const handleRemoveFile = useCallback(() => {
+    setValidationError(null)
     onFileSelect(null as any)
   }, [onFileSelect])
 
@@ -64,79 +122,82 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
   }
 
   return (
-    <div className={cn("w-full max-w-2xl mx-auto", className)}>
+    <div className={`w-full max-w-2xl mx-auto ${className || ''}`.trim()}>
       {!selectedFile ? (
-        <Card
-          className={cn(
-            "relative border-2 border-dashed transition-all duration-200 hover:border-primary/50",
-            isDragOver ? "border-primary bg-primary/5 scale-[1.02]" : "border-muted-foreground/25",
-            isProcessing && "border-primary bg-primary/5"
-          )}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-            <div className={cn(
-              "mb-6 rounded-full p-6 transition-all duration-200",
-              isDragOver ? "bg-primary/10 scale-110" : "bg-muted/50",
-              isProcessing && "animate-pulse bg-primary/10"
-            )}>
-              <Upload className={cn(
-                "h-12 w-12 transition-colors duration-200",
-                isDragOver ? "text-primary" : "text-muted-foreground",
-                isProcessing && "text-primary"
-              )} />
-            </div>
-            
-            <h3 className="mb-2 text-xl font-semibold">
-              {isProcessing ? "Processing PDF..." : "Upload your PDF document"}
-            </h3>
-            
-            <p className="mb-6 text-sm text-muted-foreground max-w-sm">
-              {isProcessing 
-                ? "Please wait while we prepare your document"
-                : "Drag and drop your PDF file here, or click to browse and select a file"
-              }
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={handleFileInput}
-                className="hidden"
-                id="pdf-upload"
-                disabled={isProcessing}
-              />
-              <label htmlFor="pdf-upload">
-                <Button
-                  type="button"
-                  disabled={isProcessing}
-                  className="cursor-pointer"
-                  asChild
-                >
-                  <span>
-                    {isProcessing ? "Processing..." : "Choose PDF File"}
-                  </span>
-                </Button>
-              </label>
-              
-              <div className="text-xs text-muted-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span>PDF files only • Max 50MB</span>
+        <div className="space-y-4">
+          <Card
+            className={`upload-zone ${isDragOver ? 'drag-over' : ''} ${isProcessing ? 'drag-over' : ''}`.trim()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <div className={`mb-6 rounded-full p-6 transition-all duration-200 ${isDragOver || isProcessing ? 'bg-green-100' : 'bg-gray-100'}`.trim()}>
+                <Upload className={`h-12 w-12 transition-colors duration-200 ${isDragOver || isProcessing ? 'text-green-600' : 'text-gray-600'}`.trim()} />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              
+              <h3 className="mb-2 text-xl font-semibold">
+                {isProcessing ? "Processing PDF..." : "Upload your PDF document"}
+              </h3>
+              
+              <p className="mb-6 text-sm text-gray-600 max-w-sm">
+                {isProcessing 
+                  ? "Please wait while we validate and prepare your document"
+                  : "Drag and drop your PDF file here, or click to browse and select a file"
+                }
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileInput}
+                  className="hidden"
+                  id="pdf-upload"
+                  disabled={isProcessing}
+                />
+                <label htmlFor="pdf-upload">
+                  <Button
+                    type="button"
+                    disabled={isProcessing}
+                    className="cursor-pointer"
+                  >
+                    {isProcessing ? "Processing..." : "Choose PDF File"}
+                  </Button>
+                </label>
+                
+                <div className="text-xs text-gray-600 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span>PDF files only • Max 50MB</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {validationError && (
+            <Card className="bg-red-50 border-red-200">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-900">Upload Error</p>
+                    <p className="text-sm text-red-700">{validationError}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       ) : (
-        <Card className="border-green-200 bg-green-50/50">
+        <Card className="bg-green-50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="rounded-full bg-green-100 p-3">
-                  <Check className="h-6 w-6 text-green-600" />
-                </div>
+                <DocumentIcon 
+                  state="success"
+                  size="md"
+                  className="transition-all duration-200"
+                />
                 <div>
                   <h4 className="font-semibold text-green-900">{selectedFile.name}</h4>
                   <p className="text-sm text-green-700">
@@ -145,8 +206,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
                 </div>
               </div>
               <Button
-                variant="ghost"
-                size="icon"
+                variant="secondary"
                 onClick={handleRemoveFile}
                 className="text-green-700 hover:text-green-900 hover:bg-green-100"
               >
