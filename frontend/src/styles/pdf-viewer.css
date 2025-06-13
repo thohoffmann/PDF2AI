@@ -13,4 +13,18 @@
 /* Layout styles */
 html, body, #root {
   height: 100%;
+}
+
+/* PDF page preview styles */
+.pdf-page-preview {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+/* Ensure the PDF page fits within its container */
+.pdf-page-preview canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
 } 

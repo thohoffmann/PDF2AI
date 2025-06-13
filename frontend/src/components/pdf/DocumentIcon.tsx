@@ -1,58 +1,48 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
+import { Document, Page, pdfjs } from "react-pdf"
 import ContextMenu from "./context-menu"
 
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+
 interface DocumentIconProps {
-  className?: string
-  state?: "default" | "active" | "processing" | "success" | "error"
+  file: File
   size?: "sm" | "md" | "lg"
+  isActive?: boolean
+  isProcessing?: boolean
+  isSuccess?: boolean
+  isError?: boolean
+  onSummarize?: () => void
 }
 
-export default function DocumentIcon({ className = "", state = "default", size = "md" }: DocumentIconProps) {
-  const [isHovered, setIsHovered] = useState(false)
+export default function DocumentIcon({
+  file,
+  size = "md",
+  isActive = false,
+  isProcessing = false,
+  isSuccess = false,
+  isError = false,
+  onSummarize,
+}: DocumentIconProps) {
+  const [showContextMenu, setShowContextMenu] = useState(false)
+  const [numPages, setNumPages] = useState<number | null>(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [hasStartedScan, setHasStartedScan] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Size configurations
-  const sizeStyles = {
-    sm: { width: "48px", height: "64px", fontSize: "10px", padding: "4px" },
-    md: { width: "64px", height: "80px", fontSize: "12px", padding: "6px" },
-    lg: { width: "96px", height: "128px", fontSize: "16px", padding: "8px" },
-  }
+  // Create object URL for the PDF file
+  useEffect(() => {
+    const url = URL.createObjectURL(file)
+    setPdfUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
-  // State-based styling
-  const stateStyles = {
-    default: {
-      background: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
-      borderColor: "#d1d5db",
-      textColor: "#374151",
-    },
-    active: {
-      background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-      borderColor: "#93c5fd",
-      textColor: "#1d4ed8",
-    },
-    processing: {
-      background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-      borderColor: "#fbbf24",
-      textColor: "#92400e",
-    },
-    success: {
-      background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
-      borderColor: "#6ee7b7",
-      textColor: "#065f46",
-    },
-    error: {
-      background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-      borderColor: "#f87171",
-      textColor: "#991b1b",
-    },
-  }
-
-  // Handle scan animation - now triggered by summarize click, not hover
+  // Handle scan animation
   useEffect(() => {
     if (hasStartedScan) {
       setScanComplete(false)
@@ -70,142 +60,129 @@ export default function DocumentIcon({ className = "", state = "default", size =
     }
   }, [hasStartedScan])
 
-  const currentSize = sizeStyles[size]
-  const currentState = stateStyles[state]
-
-  const containerStyle: React.CSSProperties = {
-    position: "relative",
-    overflow: "visible", // Changed from hidden to visible to allow context menu to show
-    cursor: "pointer",
-    ...currentSize,
+  // Size configurations
+  const sizeConfig = {
+    sm: { width: 48, height: 64 },
+    md: { width: 64, height: 84 },
+    lg: { width: 80, height: 104 },
   }
 
-  const pdfDocumentStyle: React.CSSProperties = {
+  const { width, height } = sizeConfig[size]
+
+  // Document icon styles
+  const documentStyle: React.CSSProperties = {
     position: "relative",
-    background: currentState.background,
-    borderRadius: "8px",
-    padding: currentSize.padding,
+    width: `${width}px`,
+    height: `${height}px`,
+    backgroundColor: "white",
+    borderRadius: "4px",
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+    overflow: "visible",
+    cursor: "pointer",
+    transition: "transform 0.2s ease-in-out",
+    transform: isActive ? "scale(1.05)" : "scale(1)",
+  }
+
+  // Folded corner styles
+  const foldedCornerStyle: React.CSSProperties = {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: "20%",
+    height: "20%",
+    background: "linear-gradient(135deg, transparent 50%, #f3f4f6 50%)",
+    borderBottomLeftRadius: "4px",
+    zIndex: 2,
+  }
+
+  // PDF preview container styles
+  const previewContainerStyle: React.CSSProperties = {
     width: "100%",
     height: "100%",
-    border: `2px solid ${currentState.borderColor}`,
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-    transition: "transform 0.3s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
     overflow: "hidden",
-    transform: isHovered ? "scale(1.05)" : "scale(1)",
+    borderRadius: "4px",
   }
 
-  const cornerFoldStyle: React.CSSProperties = {
+  // Status indicator styles
+  const statusIndicatorStyle: React.CSSProperties = {
     position: "absolute",
-    top: "0",
-    right: "0",
-    width: "12px",
-    height: "12px",
-    backgroundColor: currentState.borderColor,
-    transform: "rotate(45deg) translate(6px, -6px)",
-    zIndex: 2,
-  }
-
-  const cornerInnerStyle: React.CSSProperties = {
-    position: "absolute",
-    top: "0",
-    right: "0",
+    bottom: "4px",
+    right: "4px",
     width: "8px",
     height: "8px",
-    backgroundColor: currentState.background.split(",")[0].split("(")[1],
-    borderLeft: `1px solid ${currentState.borderColor}`,
-    borderBottom: `1px solid ${currentState.borderColor}`,
+    borderRadius: "50%",
+    backgroundColor: isError
+      ? "#ef4444"
+      : isSuccess
+      ? "#22c55e"
+      : isProcessing
+      ? "#f59e0b"
+      : "transparent",
     zIndex: 2,
   }
 
-  const contentLinesStyle: React.CSSProperties = {
-    marginTop: size === "sm" ? "8px" : size === "md" ? "12px" : "16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: size === "sm" ? "2px" : size === "md" ? "3px" : "4px",
-    position: "relative",
-    zIndex: 2,
-  }
-
-  const lineBaseStyle: React.CSSProperties = {
-    height: size === "sm" ? "1px" : size === "md" ? "2px" : "3px",
-    backgroundColor: "#9ca3af",
-    borderRadius: "1px",
-    transition: "background-color 0.3s ease",
-  }
-
-  const pdfLabelStyle: React.CSSProperties = {
-    position: "absolute",
-    bottom: currentSize.padding,
-    left: currentSize.padding,
-    fontSize: currentSize.fontSize,
-    fontWeight: "700",
-    color: currentState.textColor,
-    zIndex: 2,
-    transition: "color 0.3s ease",
-  }
-
-  // Determine scan line position
-  const getScanLinePosition = () => {
-    if (!hasStartedScan) {
-      return "translateY(-4px)" // Initial position (hidden)
-    }
-    if (scanComplete) {
-      return `translateY(${Number.parseInt(currentSize.height) - 4}px)` // Bottom position
-    }
-    // If scan started but not complete, animate to bottom
-    return `translateY(${Number.parseInt(currentSize.height) - 4}px)`
-  }
-
+  // Scan line styles
   const scanLineStyle: React.CSSProperties = {
     position: "absolute",
-    top: "0",
-    left: "0",
+    top: 0,
+    left: 0,
     width: "100%",
     height: "4px",
     background: "linear-gradient(90deg, transparent 0%, #ef4444 50%, transparent 100%)",
     boxShadow: "0 0 15px rgba(239, 68, 68, 0.9)",
     transition: hasStartedScan ? "all 2s ease-in-out" : "opacity 0.3s ease",
     opacity: hasStartedScan ? 1 : 0,
-    transform: getScanLinePosition(),
+    transform: hasStartedScan
+      ? `translateY(${height}px)`
+      : "translateY(-4px)",
     zIndex: 3,
   }
 
   const handleSummarize = () => {
-    console.log("Summarize document")
-    // Start the scan animation when Summarize is clicked
-    setHasStartedScan(true)
-    // Add your summarize functionality here
+    if (onSummarize) {
+      setHasStartedScan(true)
+      onSummarize()
+    }
   }
 
   return (
     <div
-      className={className}
-      style={containerStyle}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      ref={containerRef}
+      style={documentStyle}
+      onMouseEnter={() => setShowContextMenu(true)}
+      onMouseLeave={() => setShowContextMenu(false)}
     >
-      <div style={pdfDocumentStyle}>
-        {/* Document corner fold */}
-        <div style={cornerFoldStyle}></div>
-        <div style={cornerInnerStyle}></div>
-
-        {/* Document lines representing text content */}
-        <div style={contentLinesStyle}>
-          <div style={{ ...lineBaseStyle, width: "75%" }}></div>
-          <div style={lineBaseStyle}></div>
-          <div style={{ ...lineBaseStyle, width: "85%" }}></div>
-          <div style={{ ...lineBaseStyle, width: "65%" }}></div>
-        </div>
-
-        {/* PDF Text */}
-        <div style={pdfLabelStyle}>PDF</div>
-
-        {/* Scan Line Animation */}
-        <div style={scanLineStyle}></div>
+      <div style={previewContainerStyle}>
+        {pdfUrl && (
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            loading={<div>Loading...</div>}
+          >
+            <Page
+              pageNumber={pageNumber}
+              width={width}
+              height={height}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              className="pdf-page-preview"
+            />
+          </Document>
+        )}
       </div>
-
-      {/* Context Menu as a separate component */}
-      <ContextMenu isVisible={isHovered} onSummarize={handleSummarize} />
+      <div style={foldedCornerStyle} />
+      <div style={statusIndicatorStyle} />
+      <div style={scanLineStyle} />
+      {onSummarize && (
+        <ContextMenu
+          isVisible={showContextMenu}
+          onSummarize={handleSummarize}
+        />
+      )}
     </div>
   )
 }

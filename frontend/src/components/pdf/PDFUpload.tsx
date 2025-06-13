@@ -194,15 +194,21 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <DocumentIcon 
-                  state="success"
+                  file={selectedFile}
+                  isSuccess={true}
                   size="md"
-                  className="transition-all duration-200"
+                  onSummarize={() => {
+                    // Add summarize functionality here
+                    console.log("Summarizing document...")
+                  }}
                 />
-                <div>
-                  <h4 className="font-semibold text-green-900">{selectedFile.name}</h4>
-                  <p className="text-sm text-green-700">
-                    {formatFileSize(selectedFile.size)} • PDF Document
-                  </p>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-900">
+                    {selectedFile.name}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
                 </div>
               </div>
               <Button
