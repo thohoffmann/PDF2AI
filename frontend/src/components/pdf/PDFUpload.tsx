@@ -1,4 +1,6 @@
-import React, { useCallback, useState } from 'react'
+"use client"
+
+import React, { useCallback, useState, useRef } from 'react'
 import { Upload, FileText, X, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
@@ -14,6 +16,9 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Enhanced PDF validation
   const validatePDFFile = async (file: File): Promise<{ isValid: boolean; error?: string }> => {
@@ -121,6 +126,47 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  const handleSummarize = async () => {
+    if (!selectedFile) return
+
+    setIsProcessing(true)
+    setValidationError(null)
+    setProgress(0)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", selectedFile)
+
+      // Simulate progress for text extraction (30%)
+      setProgress(30)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const response = await fetch("http://localhost:8000/api/summarize", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to summarize PDF")
+      }
+
+      const data = await response.json()
+      
+      // Update progress based on response
+      if (data.progress) {
+        setProgress(data.progress)
+      } else {
+        setProgress(100)
+      }
+      
+      setSummary(data.summary)
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className={`w-full max-w-2xl mx-auto ${className || ''}`.trim()}>
       {!selectedFile ? (
@@ -155,6 +201,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
                   className="hidden"
                   id="pdf-upload"
                   disabled={isProcessing}
+                  ref={fileInputRef}
                 />
                 <label htmlFor="pdf-upload">
                   <Button
@@ -189,38 +236,55 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
           )}
         </div>
       ) : (
-        <Card className="bg-green-50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <DocumentIcon 
-                  file={selectedFile}
-                  isSuccess={true}
-                  size="md"
-                  onSummarize={() => {
-                    // Add summarize functionality here
-                    console.log("Summarizing document...")
-                  }}
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900">
-                    {selectedFile.name}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </span>
+        <div className="space-y-4">
+          <DocumentIcon
+            file={selectedFile}
+            size="lg"
+            isProcessing={isProcessing}
+            isSuccess={!!summary}
+            isError={!!validationError}
+            progress={progress}
+            onSummarize={handleSummarize}
+          />
+          <Card className="bg-green-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedFile.name}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                  </div>
                 </div>
+                <Button
+                  variant="secondary"
+                  onClick={handleRemoveFile}
+                  className="text-green-700 hover:text-green-900 hover:bg-green-100"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="secondary"
-                onClick={handleRemoveFile}
-                className="text-green-700 hover:text-green-900 hover:bg-green-100"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
+              {/* Summary Section */}
+              {summary && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">Summary</h3>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{summary}</p>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {validationError && (
+                <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-600">{validationError}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   )

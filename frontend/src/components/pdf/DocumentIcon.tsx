@@ -14,6 +14,7 @@ interface DocumentIconProps {
   isProcessing?: boolean
   isSuccess?: boolean
   isError?: boolean
+  progress?: number
   onSummarize?: () => void
 }
 
@@ -24,6 +25,7 @@ export default function DocumentIcon({
   isProcessing = false,
   isSuccess = false,
   isError = false,
+  progress = 0,
   onSummarize,
 }: DocumentIconProps) {
   const [showContextMenu, setShowContextMenu] = useState(false)
@@ -42,23 +44,15 @@ export default function DocumentIcon({
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  // Handle scan animation
+  // Handle scan animation based on progress
   useEffect(() => {
-    if (hasStartedScan) {
+    if (isProcessing) {
+      setHasStartedScan(true)
       setScanComplete(false)
-
-      // Set timeout for scan completion
-      scanTimeoutRef.current = setTimeout(() => {
-        setScanComplete(true)
-      }, 2000) // Match the transition duration
+    } else if (isSuccess) {
+      setScanComplete(true)
     }
-
-    return () => {
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current)
-      }
-    }
-  }, [hasStartedScan])
+  }, [isProcessing, isSuccess, progress])
 
   // Size configurations
   const sizeConfig = {
@@ -125,7 +119,7 @@ export default function DocumentIcon({
     zIndex: 2,
   }
 
-  // Scan line styles
+  // Scan line styles with progress
   const scanLineStyle: React.CSSProperties = {
     position: "absolute",
     top: 0,
@@ -134,10 +128,10 @@ export default function DocumentIcon({
     height: "4px",
     background: "linear-gradient(90deg, transparent 0%, #ef4444 50%, transparent 100%)",
     boxShadow: "0 0 15px rgba(239, 68, 68, 0.9)",
-    transition: hasStartedScan ? "all 2s ease-in-out" : "opacity 0.3s ease",
+    transition: hasStartedScan ? "all 0.3s ease-in-out" : "opacity 0.3s ease",
     opacity: hasStartedScan ? 1 : 0,
     transform: hasStartedScan
-      ? `translateY(${height}px)`
+      ? `translateY(${height * (progress / 100)}px)`
       : "translateY(-4px)",
     zIndex: 3,
   }
@@ -153,28 +147,35 @@ export default function DocumentIcon({
     <div
       ref={containerRef}
       style={documentStyle}
+      className={`document-icon ${
+        isActive ? "document-icon--active" : ""
+      } ${
+        isProcessing ? "document-icon--processing" : ""
+      } ${
+        isSuccess ? "document-icon--success" : ""
+      } ${
+        isError ? "document-icon--error" : ""
+      }`}
       onMouseEnter={() => setShowContextMenu(true)}
       onMouseLeave={() => setShowContextMenu(false)}
     >
+      <div style={foldedCornerStyle} />
       <div style={previewContainerStyle}>
         {pdfUrl && (
           <Document
             file={pdfUrl}
             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            loading={<div>Loading...</div>}
+            loading={null}
           >
             <Page
               pageNumber={pageNumber}
               width={width}
-              height={height}
               renderTextLayer={false}
               renderAnnotationLayer={false}
-              className="pdf-page-preview"
             />
           </Document>
         )}
       </div>
-      <div style={foldedCornerStyle} />
       <div style={statusIndicatorStyle} />
       <div style={scanLineStyle} />
       {onSummarize && (
