@@ -26,46 +26,253 @@ A Python tool for PDF text extraction, AI-powered summarization, and intelligent
 - **Synonym and concept matching** using AI
 - **Priority keyword suggestions** for immediate action
 
-## 📋 Installation & Setup
+## 📋 Complete System Setup
+
+PDF2AI now includes both a FastAPI backend and React frontend for full-stack operation.
 
 ### Prerequisites
-- Python 3.13.3+ (or compatible version)
+- **Python 3.11+** (tested with 3.13.3)
+- **Node.js 16+** and npm
 - pip (Python package manager)
 - **Ollama with Gemma3 model** (for AI features)
 
-### Installation Steps
+### 🛠️ Quick Setup Guide
 
-1. **Clone or download the project**
-   ```bash
-   cd /path/to/your/project
-   ```
+#### 1. **Clone and Navigate to Project**
+```bash
+git clone <repository-url>
+cd PDF2AI
+```
 
-2. **Create virtual environment**
-   ```bash
-   python3 -m venv venv
-   ```
+#### 2. **Backend Setup (FastAPI)**
+```bash
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3. **Activate virtual environment**
-   ```bash
-   source venv/bin/activate
-   ```
+# Navigate to backend directory
+cd backend
 
-4. **Install dependencies**
-   ```bash
-   pip install PyPDF2
-   ```
+# Install backend dependencies
+pip install -r requirements.txt
 
-5. **Install and setup Ollama with Gemma3**
-   ```bash
-   # Install Ollama (if not already installed)
-   # Visit: https://ollama.ai/download
-   
-   # Pull Gemma3 model
-   ollama pull gemma3
-   
-   # Start Ollama service
-   ollama serve
-   ```
+# Copy environment configuration (optional)
+cp env.example .env
+# Edit .env file if needed with your settings
+```
+
+#### 3. **Frontend Setup (React)**
+```bash
+# Navigate to frontend directory (from project root)
+cd frontend
+
+# Install frontend dependencies
+npm install
+```
+
+#### 4. **AI Setup (Ollama with Gemma3)**
+```bash
+# Install Ollama (if not already installed)
+# Visit: https://ollama.ai/download
+
+# Pull Gemma3 model
+ollama pull gemma3
+
+# Start Ollama service (in separate terminal)
+ollama serve
+```
+
+### 🚀 Running the Application
+
+#### **Option 1: Full Stack Development (Recommended)**
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+source ../venv/bin/activate  # Activate virtual environment
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm start
+```
+
+**Terminal 3 - AI Service:**
+```bash
+ollama serve
+```
+
+The applications will be available at:
+- **Frontend (React)**: http://localhost:3000
+- **Backend (FastAPI)**: http://127.0.0.1:8000
+- **API Documentation**: http://127.0.0.1:8000/docs
+
+#### **Option 2: Backend Only**
+```bash
+cd backend
+source ../venv/bin/activate
+python main.py
+```
+
+#### **Option 3: Legacy Mode (Original Script)**
+```bash
+source venv/bin/activate
+python deepdfscan.py
+```
+
+### 🧪 Testing the Setup
+
+#### **Connection Test**
+```bash
+# Test backend connectivity
+python test_connection.py
+```
+
+Expected output:
+```
+🧪 Testing PDF2AI Backend Connection...
+📡 Testing: http://127.0.0.1:8000/
+✅ SUCCESS: 200
+📄 Response: {
+  "message": "PDF2AI Backend is running!",
+  "status": "healthy",
+  "version": "1.0.0"
+}
+```
+
+#### **Frontend Connection Test**
+1. Open http://localhost:3000 in your browser
+2. You should see the **Backend Connection Test** component at the top
+3. If connected properly, you'll see:
+   - ✅ Backend Connected
+   - Health check results
+   - Available endpoints
+   - CORS configuration
+
+### 📁 Project Structure
+
+```
+PDF2AI/
+├── backend/                 # FastAPI Backend
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── api.py          # API routes
+│   │   └── config.py       # Configuration
+│   ├── main.py             # FastAPI application
+│   ├── start.py            # Startup script
+│   ├── requirements.txt    # Python dependencies
+│   ├── env.example         # Environment variables
+│   └── README.md           # Backend documentation
+├── frontend/               # React Frontend
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── services/       # API services
+│   │   └── App.tsx         # Main application
+│   ├── package.json        # Node dependencies
+│   └── README.md           # Frontend documentation
+├── venv/                   # Python virtual environment
+├── deepdfscan.py           # Legacy standalone script
+├── test_connection.py      # Backend connection test
+└── README.md               # This file
+```
+
+### 🔧 Development Workflow
+
+1. **Start Backend**: `cd backend && uvicorn main:app --reload`
+2. **Start Frontend**: `cd frontend && npm start`
+3. **Start AI Service**: `ollama serve`
+4. **Open Browser**: http://localhost:3000
+5. **API Documentation**: http://127.0.0.1:8000/docs
+
+### ⚡ Quick Commands
+
+```bash
+# Backend development
+cd backend && source ../venv/bin/activate && uvicorn main:app --reload
+
+# Frontend development  
+cd frontend && npm start
+
+# Test connection
+python test_connection.py
+
+# Legacy mode
+source venv/bin/activate && python deepdfscan.py
+```
+
+### 🛠️ Troubleshooting
+
+#### **Common Issues**
+
+**1. Backend won't start / Import errors**
+```bash
+# Make sure you're in the backend directory
+cd backend
+
+# Activate virtual environment
+source ../venv/bin/activate
+
+# Check Python path and imports
+python -c "from main import app; print('✅ Import successful')"
+
+# If imports fail, reinstall dependencies
+pip install -r requirements.txt
+```
+
+**2. Frontend can't connect to backend**
+- Ensure backend is running on http://127.0.0.1:8000
+- Check the browser console for CORS errors
+- Verify API_BASE_URL in `frontend/src/services/api.ts`
+
+**3. Port conflicts**
+```bash
+# Backend port 8000 in use
+lsof -i :8000
+kill <PID>  # Kill conflicting process
+
+# Frontend port 3000 in use
+# React will offer to run on different port (Y/n)
+```
+
+**4. Virtual environment issues**
+```bash
+# Recreate virtual environment
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+cd backend && pip install -r requirements.txt
+```
+
+**5. Node.js/npm issues**
+```bash
+# Clear npm cache and reinstall
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### **Quick Health Checks**
+
+```bash
+# Test backend health
+curl http://127.0.0.1:8000/api/health
+
+# Test frontend build
+cd frontend && npm run build
+
+# Test Python environment
+python --version  # Should be 3.11+
+node --version     # Should be 16+
+```
+
+#### **Development Tips**
+
+- Keep 3 terminals open: Backend, Frontend, Ollama
+- Use `--reload` flag for backend auto-restart during development
+- Check browser DevTools Network tab for API call debugging
+- Backend logs show in terminal, frontend logs in browser console
 
 ## 🔧 Usage
 
@@ -198,26 +405,97 @@ When finished, press Enter twice (empty line) to continue:
 
 ```
 PDF2AI/
-├── deepdfscan.py        # Main application script (interactive)
-├── README.md            # This documentation
-├── venv/               # Virtual environment (created during setup)
+├── deepdfscan.py              # Main CLI application script (interactive)
+├── README.md                  # This documentation
+├── ARCHITECTURE_PLAN.md       # Full web architecture plan
+├── .gitignore                 # Git ignore patterns
+├── venv/                      # Virtual environment (CLI dependencies)
 │   ├── bin/
 │   ├── lib/
 │   └── ...
-├── CV.pdf              # Sample CV for testing
-├── sample.pdf          # Sample PDF for testing
-├── sample2.pdf         # Additional sample PDFs
+├── frontend/                  # React TypeScript Frontend (COMPLETE)
+│   ├── public/
+│   │   ├── index.html
+│   │   └── pdf.worker.min.js  # PDF.js worker
+│   ├── src/
+│   │   ├── components/        # V0-compatible component structure
+│   │   │   ├── ui/           # shadcn/ui base components
+│   │   │   │   ├── button.tsx     # CVA-powered button variants
+│   │   │   │   ├── card.tsx       # Tailwind card components
+│   │   │   │   └── DocumentIcon.tsx
+│   │   │   ├── pdf/          # PDF functionality
+│   │   │   │   ├── PDFUpload.tsx   # Drag-and-drop upload
+│   │   │   │   └── PDFViewer.tsx   # PDF display with controls
+│   │   │   └── layout/       # Layout components
+│   │   ├── globals.css       # Tailwind v4 directives
+│   │   ├── App.tsx           # Main React app
+│   │   └── index.tsx
+│   ├── package.json          # Frontend dependencies
+│   └── node_modules/         # Frontend packages
+├── backend/                   # FastAPI Backend (PLANNED)
+│   └── (Future implementation)
+├── CV.pdf                     # Sample CV for testing
+├── sample.pdf                 # Sample PDF for testing
+├── sample2.pdf                # Additional sample PDFs
 └── sample3.pdf
 ```
 
+## 🌐 Frontend Web Application *(NEW!)*
+
+### **Modern React Frontend** 🚀
+- **React 18+ with TypeScript** for type safety and modern features
+- **Tailwind CSS v4.1.6** for utility-first styling
+- **V0 Component Compatibility** with shadcn/ui integration
+- **PDF.js Integration** for in-browser PDF viewing
+- **Drag-and-Drop Upload** with file validation
+- **Responsive Design** for desktop and mobile
+
+### **Frontend Features**
+- ✅ **PDF Upload Component** - Drag-and-drop interface with validation
+- ✅ **PDF Viewer Component** - Zoom, rotate, navigate, download controls
+- ✅ **V0-Compatible Components** - Ready for V0 component imports
+- ✅ **Tailwind v4 Integration** - Modern utility classes and design system
+- ✅ **Class Variance Authority** - Component variants for consistency
+- ✅ **Radix UI Primitives** - Accessible, unstyled component foundations
+
+### **Running the Frontend**
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start development server
+npm start
+
+# Frontend will be available at http://localhost:3000
+```
+
+### **Frontend Technology Stack**
+- **React**: `^19.1.0` - Latest React with concurrent features
+- **TypeScript**: `^4.9.5` - Type safety and developer experience
+- **Tailwind CSS**: `^4.1.6` - Utility-first CSS framework (v4)
+- **shadcn/ui**: `github:shadcn/ui` - Component library for V0 compatibility
+- **class-variance-authority**: `^0.7.1` - Component variant system
+- **Radix UI**: Multiple packages for accessible primitives
+- **PDF.js**: `^4.8.69` - PDF rendering in the browser
+- **Lucide React**: `^0.513.0` - Beautiful icon library
+
 ## 🧠 Technical Details
 
-### **Dependencies**
+### **CLI Dependencies**
 - **PyPDF2**: PDF text extraction
 - **subprocess**: Interface with Ollama/Gemma3
 - **Ollama + Gemma3**: AI-powered text analysis and summarization
 - **json**: Data parsing for AI responses
 - **pathlib**: File path handling
+
+### **Frontend Dependencies**
+- **react-pdf**: PDF rendering and interaction
+- **lucide-react**: Icon components
+- **@radix-ui/***: Accessible UI primitives
+- **@testing-library/***: Testing utilities
 
 ### **Key Functions**
 - `get_user_choice()`: Interactive menu system
@@ -237,14 +515,26 @@ PDF2AI/
 
 ## 🔮 Future Development Plan
 
-### **Phase 1: Enhanced User Experience** *(In Progress)*
+### **Phase 1: Enhanced User Experience** *(COMPLETED)*
 - [x] **Interactive Menu System**
 - [x] **CV-Job Advert Comparison with AI**
 - [x] **Smart Keyword Extraction and Analysis**
-- [ ] **Progress bars for long operations**
-- [ ] **Configuration file for user preferences**
+- [x] **React Frontend with TypeScript**
+- [x] **Tailwind CSS v4 + V0 Compatibility**
+- [x] **PDF Upload and Viewer Components**
+- [x] **Modern Component Architecture**
+- [ ] **Backend API Integration**
+- [ ] **Real-time Analysis Progress**
 
-### **Phase 2: Advanced Analysis Features**
+### **Phase 2: Backend Integration** *(Next Priority)*
+- [ ] **FastAPI Backend Development**
+- [ ] **REST API Endpoints**
+- [ ] **WebSocket Real-time Updates**
+- [ ] **File Upload Handling**
+- [ ] **AI Service Integration**
+- [ ] **CLI-Backend Logic Sharing**
+
+### **Phase 3: Advanced Analysis Features**
 - [ ] **Industry-specific keyword dictionaries**
   - Tech/IT keywords database
   - Finance/Business terminology
@@ -351,8 +641,9 @@ For issues, feature requests, or questions:
 
 ---
 
-**Last Updated:** December 2024  
-**Version:** 2.0.0 - Interactive Features  
+**Last Updated:** June 2025  
+**Version:** 3.0.0 - React Frontend + V0 Integration  
 **Python Compatibility:** 3.13.3+  
+**Frontend Stack:** React 18+ TypeScript, Tailwind CSS v4, shadcn/ui  
 **AI Model:** Ollama + Gemma3  
-**New Features:** Interactive Menu, CV-Job Comparison, AI Keyword Analysis 
+**Key Features:** CLI + Web Interface, V0 Component Compatibility, Modern PDF Viewer 

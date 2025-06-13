@@ -1,0 +1,16 @@
+/* PDF Viewer Styles */
+.react-pdf__Page {
+  margin: 0 auto 1rem auto;
+  display: block;
+}
+
+.react-pdf__Page__canvas {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Layout styles */
+html, body, #root {
+  height: 100%;
+} 

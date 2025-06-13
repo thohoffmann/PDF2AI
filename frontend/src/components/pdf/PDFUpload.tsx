@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { Upload, FileText, X, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
-import { DocumentIcon } from '../ui/DocumentIcon'
+import DocumentIcon from './DocumentIcon'
 
 interface PDFUploadProps {
   onFileSelect: (file: File) => void
