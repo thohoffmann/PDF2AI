@@ -5,8 +5,6 @@ import { Document, Page, pdfjs } from "react-pdf"
 import "react-pdf/dist/esm/Page/AnnotationLayer.css"
 import "react-pdf/dist/esm/Page/TextLayer.css"
 import ContextMenu from "./context-menu"
-import PDFViewer from "./PDFViewer"
-import { createPortal } from "react-dom"
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/build/pdf.worker.entry")
@@ -39,7 +37,7 @@ export default function DocumentIcon({
   const [hasStartedScan, setHasStartedScan] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
   const [scanPosition, setScanPosition] = useState(0)
-  const [showFullPdf, setShowFullPdf] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const animationStartTime = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
@@ -128,16 +126,23 @@ export default function DocumentIcon({
 
   // Document icon styles
   const documentStyle: React.CSSProperties = {
-    position: "relative",
-    width: `${width}px`,
-    height: `${height}px`,
+    position: isExpanded ? "fixed" : "relative",
+    top: isExpanded ? "50%" : "auto",
+    left: isExpanded ? "50%" : "auto",
+    width: isExpanded ? "80vw" : `${width}px`,
+    height: isExpanded ? "80vh" : `${height}px`,
     backgroundColor: "white",
     borderRadius: "4px",
-    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+    boxShadow: isExpanded ? "0 20px 60px rgba(0, 0, 0, 0.3)" : "0 2px 4px rgba(0, 0, 0, 0.1)",
     overflow: "visible",
-    cursor: "pointer",
-    transition: "transform 0.2s ease-in-out",
-    transform: isActive ? "scale(1.05)" : "scale(1)",
+    cursor: isExpanded ? "default" : "pointer",
+    transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+    transform: isExpanded 
+      ? "translate(-50%, -50%) scale(1)" 
+      : isActive 
+      ? "scale(1.05)" 
+      : "scale(1)",
+    zIndex: isExpanded ? 1000 : "auto",
   }
 
   // Folded corner styles
@@ -160,6 +165,40 @@ export default function DocumentIcon({
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+    overflow: "hidden",
+    borderRadius: "4px",
+  }
+
+  // Expand button styles
+  const expandButtonStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "4px",
+    right: "4px",
+    width: "20px",
+    height: "20px",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    zIndex: 10,
+    transition: "all 0.2s ease",
+    opacity: isExpanded ? 1 : 0.7,
+  }
+
+  // Backdrop styles for expanded view
+  const backdropStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 999,
+    opacity: isExpanded ? 1 : 0,
+    visibility: isExpanded ? "visible" : "hidden",
+    transition: "all 0.3s ease",
   }
 
   // Status indicator styles
@@ -203,11 +242,18 @@ export default function DocumentIcon({
 
   const handleShow = () => {
     setShowContextMenu(false)
-    setShowFullPdf(true)
+    setIsExpanded(true)
+  }
+
+  const handleExpandClick = () => {
+    setIsExpanded(!isExpanded)
   }
 
   return (
     <>
+      {/* Backdrop for expanded view */}
+      <div style={backdropStyle} onClick={() => setIsExpanded(false)} />
+      
       <div
         ref={containerRef}
         style={documentStyle}
@@ -220,8 +266,8 @@ export default function DocumentIcon({
         } ${
           isError ? "document-icon--error" : ""
         }`}
-        onMouseEnter={() => setShowContextMenu(true)}
-        onMouseLeave={() => setShowContextMenu(false)}
+        onMouseEnter={() => !isExpanded && setShowContextMenu(true)}
+        onMouseLeave={() => !isExpanded && setShowContextMenu(false)}
       >
         <style>
           {`
@@ -245,16 +291,46 @@ export default function DocumentIcon({
             >
               <Page
                 pageNumber={pageNumber}
-                width={width}
+                width={isExpanded ? Math.min(window.innerWidth * 0.75, 800) : width}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
               />
             </Document>
           )}
+          
+          {/* Expand/Collapse Button */}
+          <div 
+            style={expandButtonStyle}
+            onClick={handleExpandClick}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.9)"
+              e.currentTarget.style.transform = "scale(1.1)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)"
+              e.currentTarget.style.transform = "scale(1)"
+            }}
+          >
+            <svg 
+              width="12" 
+              height="12" 
+              viewBox="0 0 24 24" 
+              fill="white"
+              style={{ transition: "transform 0.2s ease" }}
+            >
+              {isExpanded ? (
+                // Minimize icon
+                <path d="M19 13H5v-2h14v2z" />
+              ) : (
+                // Expand icon
+                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+              )}
+            </svg>
+          </div>
         </div>
         <div style={statusIndicatorStyle} />
         {hasStartedScan && <div style={scanLineStyle} />}
-        {onSummarize && (
+        {onSummarize && !isExpanded && (
           <ContextMenu
             isVisible={showContextMenu}
             onSummarize={handleSummarize}
@@ -262,13 +338,6 @@ export default function DocumentIcon({
           />
         )}
       </div>
-      {showFullPdf && createPortal(
-        <PDFViewer
-          file={file}
-          onClose={() => setShowFullPdf(false)}
-        />,
-        document.body
-      )}
     </>
   )
 }
