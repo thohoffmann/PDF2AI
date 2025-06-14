@@ -20,6 +20,7 @@ interface DocumentIconProps {
   isError?: boolean
   progress?: number
   onSummarize?: () => void
+  onDelete?: () => void
 }
 
 export default function DocumentIcon({
@@ -31,6 +32,7 @@ export default function DocumentIcon({
   isError = false,
   progress = 0,
   onSummarize,
+  onDelete,
 }: DocumentIconProps) {
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
@@ -56,6 +58,15 @@ export default function DocumentIcon({
   }
 
   const { width, height } = sizeConfig[size]
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  }
 
   // Create object URL for the PDF file
   useEffect(() => {
@@ -276,6 +287,51 @@ export default function DocumentIcon({
     zIndex: 2,
   }
 
+  // Bottom overlay for text readability
+  const bottomOverlayStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "30%",
+    background: "linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)",
+    borderBottomLeftRadius: "4px",
+    borderBottomRightRadius: "4px",
+    zIndex: 2,
+    display: isIntegratedExpanded ? "none" : "block",
+  }
+
+  // File name styles
+  const fileNameStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: "12px",
+    left: "4px",
+    right: "4px",
+    fontSize: "9px",
+    fontWeight: "500",
+    color: "white",
+    zIndex: 3,
+    lineHeight: "1.2",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    display: isIntegratedExpanded ? "none" : "block",
+  }
+
+  // File size indicator styles
+  const fileSizeStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: "2px",
+    right: "4px",
+    fontSize: "8px",
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.8)",
+    zIndex: 3,
+    fontFamily: "monospace",
+    lineHeight: "1",
+    display: isIntegratedExpanded ? "none" : "block",
+  }
+
   // Scan line styles
   const scanLineStyle: React.CSSProperties = {
     position: "absolute",
@@ -316,6 +372,11 @@ export default function DocumentIcon({
   const handleModalClose = () => {
     setShowModal(false)
     setCurrentPage(1)
+  }
+
+  const handleDelete = () => {
+    setShowContextMenu(false)
+    onDelete?.()
   }
 
   const goToPreviousPage = () => {
@@ -475,14 +536,33 @@ export default function DocumentIcon({
             </button>
           </div>
         </div>
+        {/* Bottom overlay for text readability - only show in preview mode */}
+        {!isIntegratedExpanded && <div style={bottomOverlayStyle} />}
+        
         {/* Status indicator - only show in preview mode */}
         {!isIntegratedExpanded && <div style={statusIndicatorStyle} />}
+        
+        {/* File name - only show in preview mode */}
+        {!isIntegratedExpanded && (
+          <div style={fileNameStyle} title={file.name}>
+            {file.name}
+          </div>
+        )}
+        
+        {/* File size indicator - only show in preview mode */}
+        {!isIntegratedExpanded && (
+          <div style={fileSizeStyle}>
+            {formatFileSize(file.size)}
+          </div>
+        )}
+        
         {hasStartedScan && <div style={scanLineStyle} />}
         {onSummarize && !isIntegratedExpanded && (
           <ContextMenu
             isVisible={showContextMenu}
             onSummarize={handleSummarize}
             onShow={handleShow}
+            onDelete={handleDelete}
           />
         )}
       </div>
