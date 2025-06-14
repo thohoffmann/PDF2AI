@@ -34,6 +34,7 @@ export default function DocumentIcon({
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
   const [hasStartedScan, setHasStartedScan] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
   const [scanPosition, setScanPosition] = useState(0)
@@ -124,6 +125,33 @@ export default function DocumentIcon({
     }
   }, [scanComplete, height])
 
+  // Keyboard navigation for expanded view
+  useEffect(() => {
+    if (!isExpanded) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      switch (event.key) {
+        case "ArrowLeft":
+        case "ArrowUp":
+          event.preventDefault()
+          goToPreviousPage()
+          break
+        case "ArrowRight":
+        case "ArrowDown":
+          event.preventDefault()
+          goToNextPage()
+          break
+        case "Escape":
+          event.preventDefault()
+          handleExpandClick()
+          break
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [isExpanded, currentPage, numPages])
+
   // Document icon styles
   const documentStyle: React.CSSProperties = {
     position: isExpanded ? "fixed" : "relative",
@@ -201,6 +229,47 @@ export default function DocumentIcon({
     transition: "all 0.3s ease",
   }
 
+  // Navigation controls styles
+  const navControlsStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: "20px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: "25px",
+    padding: "8px 16px",
+    zIndex: 11,
+    opacity: isExpanded && numPages && numPages > 1 ? 1 : 0,
+    visibility: isExpanded && numPages && numPages > 1 ? "visible" : "hidden",
+    transition: "all 0.3s ease",
+  }
+
+  const navButtonStyle: React.CSSProperties = {
+    backgroundColor: "transparent",
+    border: "none",
+    color: "white",
+    cursor: "pointer",
+    padding: "4px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s ease",
+    width: "32px",
+    height: "32px",
+  }
+
+  const pageInfoStyle: React.CSSProperties = {
+    color: "white",
+    fontSize: "14px",
+    fontWeight: "500",
+    minWidth: "60px",
+    textAlign: "center",
+  }
+
   // Status indicator styles
   const statusIndicatorStyle: React.CSSProperties = {
     position: "absolute",
@@ -246,7 +315,26 @@ export default function DocumentIcon({
   }
 
   const handleExpandClick = () => {
-    setIsExpanded(!isExpanded)
+    if (isExpanded) {
+      // Collapsing: reset to preview mode (page 1)
+      setIsExpanded(false)
+      setCurrentPage(1)
+    } else {
+      // Expanding: enter full view mode
+      setIsExpanded(true)
+    }
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (numPages && currentPage < numPages) {
+      setCurrentPage(currentPage + 1)
+    }
   }
 
   return (
@@ -290,10 +378,10 @@ export default function DocumentIcon({
               loading={null}
             >
               <Page
-                pageNumber={pageNumber}
+                pageNumber={isExpanded ? currentPage : 1}
                 width={isExpanded ? Math.min(window.innerWidth * 0.75, 800) : width}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
+                renderTextLayer={isExpanded}
+                renderAnnotationLayer={isExpanded}
               />
             </Document>
           )}
@@ -326,6 +414,57 @@ export default function DocumentIcon({
                 <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
               )}
             </svg>
+          </div>
+
+          {/* Navigation Controls - only visible when expanded and multi-page */}
+          <div style={navControlsStyle}>
+            <button
+              style={{
+                ...navButtonStyle,
+                opacity: currentPage > 1 ? 1 : 0.5,
+                cursor: currentPage > 1 ? "pointer" : "not-allowed",
+              }}
+              onClick={goToPreviousPage}
+              disabled={currentPage <= 1}
+              onMouseEnter={(e) => {
+                if (currentPage > 1) {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent"
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+              </svg>
+            </button>
+            
+            <div style={pageInfoStyle}>
+              {currentPage} / {numPages}
+            </div>
+            
+            <button
+              style={{
+                ...navButtonStyle,
+                opacity: numPages && currentPage < numPages ? 1 : 0.5,
+                cursor: numPages && currentPage < numPages ? "pointer" : "not-allowed",
+              }}
+              onClick={goToNextPage}
+              disabled={!numPages || currentPage >= numPages}
+              onMouseEnter={(e) => {
+                if (numPages && currentPage < numPages) {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent"
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+              </svg>
+            </button>
           </div>
         </div>
         <div style={statusIndicatorStyle} />
