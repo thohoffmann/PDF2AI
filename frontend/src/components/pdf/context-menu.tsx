@@ -5,9 +5,10 @@ import type React from "react"
 interface ContextMenuProps {
   isVisible: boolean
   onSummarize: () => void
+  onShow: () => void
 }
 
-export default function ContextMenu({ isVisible, onSummarize }: ContextMenuProps) {
+export default function ContextMenu({ isVisible, onSummarize, onShow }: ContextMenuProps) {
   // Context menu styles
   const contextMenuStyle: React.CSSProperties = {
     position: "absolute",
@@ -38,6 +39,12 @@ export default function ContextMenu({ isVisible, onSummarize }: ContextMenuProps
     margin: "2px 4px",
   }
 
+  const menuDividerStyle: React.CSSProperties = {
+    height: "1px",
+    backgroundColor: "#e5e7eb",
+    margin: "4px 8px",
+  }
+
   return (
     <div style={contextMenuStyle}>
       <div
@@ -65,6 +72,32 @@ export default function ContextMenu({ isVisible, onSummarize }: ContextMenuProps
           <line x1="13" y1="18" x2="3" y2="18"></line>
         </svg>
         Summarize
+      </div>
+      <div style={menuDividerStyle} />
+      <div
+        style={menuItemStyle}
+        onClick={onShow}
+        onMouseOver={(e) => {
+          e.currentTarget.style.backgroundColor = "#f3f4f6"
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent"
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        Show
       </div>
     </div>
   )

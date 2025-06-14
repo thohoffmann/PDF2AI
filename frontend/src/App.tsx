@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PDFUpload } from './components/pdf/PDFUpload';
-import { PDFViewer } from './components/pdf/PDFViewer';
 import { BackendConnectionTest } from './components/test/BackendConnectionTest';
 import './globals.css';
 
@@ -55,10 +54,6 @@ function App() {
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
           />
-          
-          {selectedFile && (
-            <PDFViewer file={selectedFile} />
-          )}
         </main>
       </div>
     </div>

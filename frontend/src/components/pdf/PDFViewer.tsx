@@ -3,85 +3,34 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download, FileText } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
+import 'react-pdf/dist/esm/Page/TextLayer.css'
 
-// Configure PDF.js worker - use local file with correct version
-pdfjs.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.js`
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/build/pdf.worker.entry')
 
 interface PDFViewerProps {
   file: File
-  className?: string
+  onClose?: () => void
 }
 
-export function PDFViewer({ file, className }: PDFViewerProps) {
-  const [numPages, setNumPages] = useState<number>(0)
-  const [pageNumber, setPageNumber] = useState<number>(1)
+export default function PDFViewer({ file, onClose }: PDFViewerProps) {
+  const [numPages, setNumPages] = useState<number | null>(null)
+  const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState<number>(1.2)
   const [rotation, setRotation] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [useFallback, setUseFallback] = useState<boolean>(false)
   const [useFileObject, setUseFileObject] = useState<boolean>(false)
   const [retryCount, setRetryCount] = useState<number>(0)
 
-  // Create object URL from file for better compatibility
+  // Create object URL for the PDF file
   useEffect(() => {
-    let currentUrl: string | null = null
-    
-    if (file) {
-      // Test file readability first
-      const testFile = async () => {
-        try {
-          const buffer = await file.arrayBuffer()
-          const bytes = new Uint8Array(buffer)
-          const signature = Array.from(bytes.slice(0, 8)).map(b => String.fromCharCode(b)).join('')
-          
-          console.log('File signature check:', signature)
-          console.log('File size:', buffer.byteLength, 'bytes')
-          
-          if (!signature.startsWith('%PDF-')) {
-            setError('File is not a valid PDF document')
-            setIsLoading(false)
-            return
-          }
-          
-          // Create URL after validation
-          const url = URL.createObjectURL(file)
-          currentUrl = url
-          setFileUrl(url)
-          
-          console.log('Created file URL:', url)
-          console.log('File details:', {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: new Date(file.lastModified).toISOString()
-          })
-          
-        } catch (error) {
-          console.error('File read test failed:', error)
-          setError('Unable to read the PDF file')
-          setIsLoading(false)
-        }
-      }
-      
-      // Reset state when file changes
-      setNumPages(0)
-      setPageNumber(1)
-      setIsLoading(true)
-      setError(null)
-      setFileUrl(null)
-      
-      testFile()
-    }
-    
-    // Cleanup function
-    return () => {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl)
-        console.log('Revoked file URL:', currentUrl)
-      }
-    }
+    const url = URL.createObjectURL(file)
+    setPdfUrl(url)
+    return () => URL.revokeObjectURL(url)
   }, [file])
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
@@ -103,7 +52,7 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
       type: file.type,
       lastModified: file.lastModified
     })
-    console.error('File URL:', fileUrl)
+    console.error('File URL:', pdfUrl)
     console.error('Using file object directly:', useFileObject)
     console.error('PDF.js version:', pdfjs.version)
     console.error('================================')
@@ -127,7 +76,7 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
     
     setError(`${errorMessage}\n\nTechnical details: ${error.message}`)
     setIsLoading(false)
-  }, [file.name, file.size, file.type, file.lastModified, fileUrl, useFileObject])
+  }, [file.name, file.size, file.type, file.lastModified, pdfUrl, useFileObject])
 
   const onPageLoadError = useCallback((error: Error) => {
     console.error('Page load error:', error)
@@ -139,7 +88,7 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
   }, [])
 
   const goToNextPage = useCallback(() => {
-    setPageNumber(prev => Math.min(numPages, prev + 1))
+    setPageNumber(prev => Math.min(numPages || prev, prev + 1))
   }, [numPages])
 
   const zoomIn = useCallback(() => {
@@ -155,15 +104,15 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
   }, [])
 
   const downloadPDF = useCallback(() => {
-    if (fileUrl) {
+    if (pdfUrl) {
       const a = document.createElement('a')
-      a.href = fileUrl
+      a.href = pdfUrl
       a.download = file.name
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
     }
-  }, [fileUrl, file.name])
+  }, [pdfUrl, file.name])
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -189,9 +138,9 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
         // Test if PDF.js can load anything
         try {
           console.log('Testing PDF.js basic functionality...')
-          console.log('File URL for testing:', fileUrl)
+          console.log('File URL for testing:', pdfUrl)
           
-          if (fileUrl) {
+          if (pdfUrl) {
             // Try to get document info without full loading
             console.log('File appears ready for PDF.js processing')
           }
@@ -207,210 +156,123 @@ export function PDFViewer({ file, className }: PDFViewerProps) {
       console.error('❌ Worker test failed:', error)
       return false
     }
-  }, [fileUrl])
+  }, [pdfUrl])
 
-  // Don't render if no file URL
-  if (!fileUrl) {
-    return (
-      <div className={`w-full max-w-4xl mx-auto ${className || ''}`.trim()}>
-        <Card className="overflow-hidden">
-          <CardContent className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Preparing PDF...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const containerStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  }
+
+  const viewerStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px',
+  }
+
+  const controlsStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    zIndex: 1001,
+  }
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '8px 16px',
+    backgroundColor: '#4a5568',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  }
+
+  const closeButtonStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    padding: '8px 16px',
+    backgroundColor: '#4a5568',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    zIndex: 1001,
   }
 
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className || ''}`.trim()}>
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-100 p-2">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{file.name}</CardTitle>
-                <p className="text-sm text-gray-600">
-                  {formatFileSize(file.size)} • {numPages > 0 && `${numPages} pages`}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={downloadPDF}>
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={goToPrevPage}
-                disabled={pageNumber <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <span className="text-sm font-medium px-3 py-1 bg-white rounded">
-                {pageNumber} of {numPages}
-              </span>
-              
-              <Button
-                variant="secondary"
-                onClick={goToNextPage}
-                disabled={pageNumber >= numPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={zoomOut}>
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              
-              <span className="text-sm font-medium px-3 py-1 bg-white rounded min-w-[60px] text-center">
-                {Math.round(scale * 100)}%
-              </span>
-              
-              <Button variant="secondary" onClick={zoomIn}>
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              
-              <Button variant="secondary" onClick={rotate}>
-                <RotateCw className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* PDF Display */}
-          <div className="flex justify-center">
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white">
-              {isLoading && (
-                <div className="flex items-center justify-center h-96 w-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading PDF...</p>
-                  </div>
-                </div>
-              )}
-              
-              {error && (
-                <div className="flex items-center justify-center h-96 w-full">
-                  <div className="text-center text-red-600 max-w-md p-6">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">PDF Loading Error</p>
-                    <p className="text-sm">{error}</p>
-                    <p className="text-xs text-gray-500 mt-3">
-                      File: {file.name} ({formatFileSize(file.size)})
-                    </p>
-                    <div className="mt-4 text-xs text-left bg-gray-100 p-3 rounded">
-                      <p><strong>Debug Info:</strong></p>
-                      <p>File URL: {fileUrl ? 'Created' : 'Not available'}</p>
-                      <p>Worker: {pdfjs.GlobalWorkerOptions.workerSrc}</p>
-                      <p>PDF.js API Version: {pdfjs.version}</p>
-                      <p>Using File Direct: {useFileObject ? 'Yes' : 'No'}</p>
-                      <div className="mt-2 space-y-2">
-                        <Button 
-                          variant="secondary" 
-                          onClick={testWorker}
-                          className="text-xs px-2 py-1"
-                        >
-                          Test Worker
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          onClick={() => setUseFallback(true)}
-                          className="text-xs px-2 py-1 ml-2"
-                        >
-                          Try Browser Viewer
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          onClick={() => setUseFileObject(true)}
-                          className="text-xs px-2 py-1 ml-2"
-                        >
-                          Try File Direct
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          onClick={() => {
-                            setError(null)
-                            setIsLoading(true)
-                            setRetryCount(prev => prev + 1)
-                            setUseFileObject(false)
-                          }}
-                          className="text-xs px-2 py-1 ml-2"
-                        >
-                          Retry ({retryCount})
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {!error && !useFallback && (
-                <Document
-                  key={`pdf-${retryCount}-${useFileObject ? 'file' : 'url'}`}
-                  file={useFileObject ? file : fileUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={onDocumentLoadError}
-                  loading=""
-                  error=""
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={scale}
-                    rotate={rotation}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    onLoadError={onPageLoadError}
-                    loading=""
-                    error=""
-                  />
-                </Document>
-              )}
-              
-              {useFallback && fileUrl && (
-                <div className="w-full">
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                    <p className="text-sm text-blue-800">
-                      <strong>Browser PDF Viewer</strong> - Using your browser's built-in PDF viewer
-                    </p>
-                    <Button 
-                      variant="secondary" 
-                      onClick={() => setUseFallback(false)}
-                      className="text-xs px-2 py-1 mt-2"
-                    >
-                      Switch Back to Advanced Viewer
-                    </Button>
-                  </div>
-                  <iframe
-                    src={fileUrl}
-                    width="100%"
-                    height="600px"
-                    title={`PDF Viewer - ${file.name}`}
-                    className="border border-gray-300 rounded"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div style={containerStyle} onClick={onClose}>
+      <div style={viewerStyle} onClick={e => e.stopPropagation()}>
+        {pdfUrl && (
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
+            loading={null}
+            error={error}
+            className="pdf-document"
+          >
+            <Page
+              pageNumber={pageNumber}
+              width={Math.min(window.innerWidth * 0.8, 800)}
+              scale={scale}
+              rotate={rotation}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              onLoadError={onPageLoadError}
+              loading={null}
+              error={error}
+            />
+          </Document>
+        )}
+        <div style={controlsStyle}>
+          <button
+            onClick={goToPrevPage}
+            disabled={pageNumber <= 1}
+            style={buttonStyle}
+          >
+            Previous
+          </button>
+          <span style={{ color: 'white', padding: '8px 16px' }}>
+            Page {pageNumber} of {numPages || '--'}
+          </span>
+          <button
+            onClick={goToNextPage}
+            disabled={pageNumber >= (numPages || 1)}
+            style={buttonStyle}
+          >
+            Next
+          </button>
+        </div>
+        {onClose && (
+          <button onClick={onClose} style={closeButtonStyle}>
+            Close
+          </button>
+        )}
+      </div>
     </div>
   )
 } 

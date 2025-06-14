@@ -2,10 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { Document, Page, pdfjs } from "react-pdf"
+import "react-pdf/dist/esm/Page/AnnotationLayer.css"
+import "react-pdf/dist/esm/Page/TextLayer.css"
 import ContextMenu from "./context-menu"
+import PDFViewer from "./PDFViewer"
+import { createPortal } from "react-dom"
 
 // Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+pdfjs.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/build/pdf.worker.entry")
 
 interface DocumentIconProps {
   file: File
@@ -29,30 +33,18 @@ export default function DocumentIcon({
   onSummarize,
 }: DocumentIconProps) {
   const [showContextMenu, setShowContextMenu] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [hasStartedScan, setHasStartedScan] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
-  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [scanPosition, setScanPosition] = useState(0)
+  const [showFullPdf, setShowFullPdf] = useState(false)
+  const animationStartTime = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  // Create object URL for the PDF file
-  useEffect(() => {
-    const url = URL.createObjectURL(file)
-    setPdfUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
-
-  // Handle scan animation based on progress
-  useEffect(() => {
-    if (isProcessing) {
-      setHasStartedScan(true)
-      setScanComplete(false)
-    } else if (isSuccess) {
-      setScanComplete(true)
-    }
-  }, [isProcessing, isSuccess, progress])
+  const animationFrameRef = useRef<number | undefined>(undefined)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Size configurations
   const sizeConfig = {
@@ -62,6 +54,77 @@ export default function DocumentIcon({
   }
 
   const { width, height } = sizeConfig[size]
+
+  // Create object URL for the PDF file
+  useEffect(() => {
+    const url = URL.createObjectURL(file)
+    setPdfUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  // Handle scan animation with continuous progress estimation
+  useEffect(() => {
+    if (hasStartedScan && !scanComplete) {
+      animationStartTime.current = Date.now()
+      setScanPosition(0) // Start at top
+
+      const updateScanPosition = () => {
+        if (!animationStartTime.current) return
+
+        const elapsed = Date.now() - animationStartTime.current
+        const duration = 30000 // 30 seconds total estimated duration
+        
+        // Use logarithmic progression for more realistic progress feel
+        let progressPercent = Math.min(elapsed / duration, 1)
+        
+        // Apply logarithmic curve: slower at the end, faster at the beginning
+        if (progressPercent < 1) {
+          progressPercent = Math.log(1 + progressPercent * 9) / Math.log(10)
+        }
+        
+        const newPosition = progressPercent * (height - 4)
+        setScanPosition(newPosition)
+
+        if (progressPercent < 1 && hasStartedScan && !scanComplete) {
+          animationFrameRef.current = requestAnimationFrame(updateScanPosition)
+        }
+      }
+
+      animationFrameRef.current = requestAnimationFrame(updateScanPosition)
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [hasStartedScan, scanComplete, height])
+
+  // Detect when summary is actually complete and trigger fast completion
+  useEffect(() => {
+    if (hasStartedScan && isSuccess && !scanComplete) {
+      setScanComplete(true)
+    }
+  }, [hasStartedScan, isSuccess, scanComplete])
+
+  // Handle scan completion
+  useEffect(() => {
+    if (scanComplete) {
+      // Cancel any ongoing animation
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      
+      // Quickly move to bottom with smooth transition
+      setScanPosition(height - 4)
+      
+      // Wait 1 second then hide
+      setTimeout(() => {
+        setHasStartedScan(false)
+        setScanPosition(0)
+      }, 1000)
+    }
+  }, [scanComplete, height])
 
   // Document icon styles
   const documentStyle: React.CSSProperties = {
@@ -96,9 +159,7 @@ export default function DocumentIcon({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "white",
-    overflow: "hidden",
-    borderRadius: "4px",
+    position: "relative",
   }
 
   // Status indicator styles
@@ -119,7 +180,7 @@ export default function DocumentIcon({
     zIndex: 2,
   }
 
-  // Scan line styles with progress
+  // Scan line styles
   const scanLineStyle: React.CSSProperties = {
     position: "absolute",
     top: 0,
@@ -128,62 +189,87 @@ export default function DocumentIcon({
     height: "4px",
     background: "linear-gradient(90deg, transparent 0%, #ef4444 50%, transparent 100%)",
     boxShadow: "0 0 15px rgba(239, 68, 68, 0.9)",
-    transition: hasStartedScan ? "all 0.3s ease-in-out" : "opacity 0.3s ease",
+    transition: scanComplete ? "transform 0.5s ease-out, opacity 0.3s ease" : "opacity 0.3s ease",
     opacity: hasStartedScan ? 1 : 0,
-    transform: hasStartedScan
-      ? `translateY(${height * (progress / 100)}px)`
-      : "translateY(-4px)",
+    transform: `translateY(${scanPosition}px)`,
     zIndex: 3,
   }
 
   const handleSummarize = () => {
-    if (onSummarize) {
-      setHasStartedScan(true)
-      onSummarize()
-    }
+    setHasStartedScan(true)
+    setScanComplete(false)
+    onSummarize?.()
+  }
+
+  const handleShow = () => {
+    setShowContextMenu(false)
+    setShowFullPdf(true)
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={documentStyle}
-      className={`document-icon ${
-        isActive ? "document-icon--active" : ""
-      } ${
-        isProcessing ? "document-icon--processing" : ""
-      } ${
-        isSuccess ? "document-icon--success" : ""
-      } ${
-        isError ? "document-icon--error" : ""
-      }`}
-      onMouseEnter={() => setShowContextMenu(true)}
-      onMouseLeave={() => setShowContextMenu(false)}
-    >
-      <div style={foldedCornerStyle} />
-      <div style={previewContainerStyle}>
-        {pdfUrl && (
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            loading={null}
-          >
-            <Page
-              pageNumber={pageNumber}
-              width={width}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
+    <>
+      <div
+        ref={containerRef}
+        style={documentStyle}
+        className={`document-icon ${
+          isActive ? "document-icon--active" : ""
+        } ${
+          isProcessing ? "document-icon--processing" : ""
+        } ${
+          isSuccess ? "document-icon--success" : ""
+        } ${
+          isError ? "document-icon--error" : ""
+        }`}
+        onMouseEnter={() => setShowContextMenu(true)}
+        onMouseLeave={() => setShowContextMenu(false)}
+      >
+        <style>
+          {`
+            @keyframes scan {
+              0% {
+                transform: translateY(0%);
+              }
+              100% {
+                transform: translateY(100%);
+              }
+            }
+          `}
+        </style>
+        <div style={foldedCornerStyle} />
+        <div style={previewContainerStyle}>
+          {pdfUrl && (
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              loading={null}
+            >
+              <Page
+                pageNumber={pageNumber}
+                width={width}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+              />
+            </Document>
+          )}
+        </div>
+        <div style={statusIndicatorStyle} />
+        {hasStartedScan && <div style={scanLineStyle} />}
+        {onSummarize && (
+          <ContextMenu
+            isVisible={showContextMenu}
+            onSummarize={handleSummarize}
+            onShow={handleShow}
+          />
         )}
       </div>
-      <div style={statusIndicatorStyle} />
-      <div style={scanLineStyle} />
-      {onSummarize && (
-        <ContextMenu
-          isVisible={showContextMenu}
-          onSummarize={handleSummarize}
-        />
+      {showFullPdf && createPortal(
+        <PDFViewer
+          file={file}
+          onClose={() => setShowFullPdf(false)}
+        />,
+        document.body
       )}
-    </div>
+    </>
   )
 }
+
