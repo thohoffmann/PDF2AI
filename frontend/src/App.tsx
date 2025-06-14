@@ -5,7 +5,7 @@ import './globals.css';
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showConnectionTest, setShowConnectionTest] = useState<boolean>(true);
+  const [showConnectionTest, setShowConnectionTest] = useState<boolean>(false);
 
   const handleFileSelect = (file: File | null) => {
     setSelectedFile(file);
@@ -24,6 +24,18 @@ function App() {
         </header>
 
         <main className="space-y-8">
+          {/* Test Connection Button */}
+          {!showConnectionTest && (
+            <div className="text-center">
+              <button
+                onClick={() => setShowConnectionTest(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Test Connection
+              </button>
+            </div>
+          )}
+
           {/* Backend Connection Test */}
           {showConnectionTest && (
             <div className="relative">
@@ -34,18 +46,6 @@ function App() {
                 title="Hide connection test"
               >
                 ×
-              </button>
-            </div>
-          )}
-
-          {/* Toggle button to show connection test if hidden */}
-          {!showConnectionTest && (
-            <div className="text-center">
-              <button
-                onClick={() => setShowConnectionTest(true)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-              >
-                Show Backend Connection Test
               </button>
             </div>
           )}

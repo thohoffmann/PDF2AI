@@ -537,21 +537,21 @@ export default function DocumentIcon({
             </button>
           </div>
         </div>
-        {/* Bottom overlay for text readability - only show in preview mode when PDF not loaded */}
-        {!isIntegratedExpanded && !numPages && <div style={bottomOverlayStyle} />}
+        {/* Bottom overlay for text readability - always show in preview mode */}
+        {!isIntegratedExpanded && <div style={bottomOverlayStyle} />}
         
         {/* Status indicator - only show in preview mode */}
         {!isIntegratedExpanded && <div style={statusIndicatorStyle} />}
         
-        {/* File name - only show in preview mode when PDF not loaded */}
-        {!isIntegratedExpanded && !numPages && (
+        {/* File name - always show in preview mode */}
+        {!isIntegratedExpanded && (
           <div style={fileNameStyle} title={file.name}>
             {file.name}
           </div>
         )}
         
-        {/* File size indicator - only show in preview mode when PDF not loaded */}
-        {!isIntegratedExpanded && !numPages && (
+        {/* File size indicator - always show in preview mode */}
+        {!isIntegratedExpanded && (
           <div style={fileSizeStyle}>
             {formatFileSize(file.size)}
           </div>
