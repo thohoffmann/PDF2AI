@@ -138,14 +138,9 @@ export default function DocumentIcon({
         cancelAnimationFrame(animationFrameRef.current)
       }
       
-      // Quickly move to bottom with smooth transition
-      setScanPosition(height - 4)
-      
-      // Wait 1 second then hide
-      setTimeout(() => {
-        setHasStartedScan(false)
-        setScanPosition(0)
-      }, 1000)
+      // Immediately hide scan line when complete
+      setHasStartedScan(false)
+      setScanPosition(0)
     }
   }, [scanComplete, height])
 
