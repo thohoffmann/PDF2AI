@@ -19,6 +19,7 @@ interface DocumentIconProps {
   isSuccess?: boolean
   isError?: boolean
   progress?: number
+  summary?: string | null
   onSummarize?: () => void
   onDelete?: () => void
 }
@@ -31,6 +32,7 @@ export default function DocumentIcon({
   isSuccess = false,
   isError = false,
   progress = 0,
+  summary = null,
   onSummarize,
   onDelete,
 }: DocumentIconProps) {
@@ -44,6 +46,7 @@ export default function DocumentIcon({
   const [scanPosition, setScanPosition] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [showSummaryExpanded, setShowSummaryExpanded] = useState(false)
   const animationStartTime = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
@@ -120,6 +123,13 @@ export default function DocumentIcon({
     }
   }, [hasStartedScan, isSuccess, scanComplete])
 
+  // Auto-expand summary when it becomes available
+  useEffect(() => {
+    if (summary && isSuccess) {
+      setShowSummaryExpanded(true)
+    }
+  }, [summary, isSuccess])
+
   // Handle scan completion
   useEffect(() => {
     if (scanComplete) {
@@ -141,33 +151,41 @@ export default function DocumentIcon({
 
   // Keyboard navigation for expanded view (integrated mode only)
   useEffect(() => {
-    if (!isExpanded || showModal) return
+    if ((!isExpanded && !showSummaryExpanded) || showModal) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
         case "ArrowLeft":
         case "ArrowUp":
-          event.preventDefault()
-          goToPreviousPage()
+          if (!showSummaryExpanded) {
+            event.preventDefault()
+            goToPreviousPage()
+          }
           break
         case "ArrowRight":
         case "ArrowDown":
-          event.preventDefault()
-          goToNextPage()
+          if (!showSummaryExpanded) {
+            event.preventDefault()
+            goToNextPage()
+          }
           break
         case "Escape":
           event.preventDefault()
-          handleExpandClick()
+          if (showSummaryExpanded) {
+            setShowSummaryExpanded(false)
+          } else {
+            handleExpandClick()
+          }
           break
       }
     }
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [isExpanded, showModal, currentPage, numPages])
+  }, [isExpanded, showSummaryExpanded, showModal, currentPage, numPages])
 
   // Document icon styles
-  const isIntegratedExpanded = isExpanded && !showModal
+  const isIntegratedExpanded = (isExpanded && !showModal) || showSummaryExpanded
   const documentStyle: React.CSSProperties = {
     position: "relative",
     width: isIntegratedExpanded ? "100%" : `${width}px`,
@@ -241,8 +259,8 @@ export default function DocumentIcon({
     borderRadius: "25px",
     padding: "8px 16px",
     zIndex: 11,
-    opacity: isIntegratedExpanded && numPages && numPages > 1 ? 1 : 0,
-    visibility: isIntegratedExpanded && numPages && numPages > 1 ? "visible" : "hidden",
+    opacity: isExpanded && !showSummaryExpanded && numPages && numPages > 1 ? 1 : 0,
+    visibility: isExpanded && !showSummaryExpanded && numPages && numPages > 1 ? "visible" : "hidden",
     transition: "all 0.3s ease",
   }
 
@@ -360,7 +378,10 @@ export default function DocumentIcon({
   }
 
   const handleExpandClick = () => {
-    if (isExpanded) {
+    if (showSummaryExpanded) {
+      // Close summary expansion
+      setShowSummaryExpanded(false)
+    } else if (isExpanded) {
       // Collapsing: reset to preview mode (page 1)
       setIsExpanded(false)
       setCurrentPage(1)
@@ -456,6 +477,46 @@ export default function DocumentIcon({
             </Document>
           )}
           
+          {/* Summary Content Overlay - only show when summary is expanded */}
+          {showSummaryExpanded && summary && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                borderRadius: "4px",
+                padding: "24px",
+                overflow: "auto",
+                zIndex: 5,
+              }}
+            >
+              <h2 
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "bold",
+                  color: "#111827",
+                  marginBottom: "24px",
+                  paddingRight: "40px",
+                }}
+              >
+                PDF Summary
+              </h2>
+              <div
+                style={{
+                  color: "#374151",
+                  lineHeight: "1.6",
+                  whiteSpace: "pre-wrap",
+                  fontSize: "16px",
+                }}
+              >
+                {summary}
+              </div>
+            </div>
+          )}
+          
           {/* Expand/Collapse Button */}
           <div 
             style={expandButtonStyle}
@@ -476,7 +537,7 @@ export default function DocumentIcon({
               fill="white"
               style={{ transition: "transform 0.2s ease" }}
             >
-              {isExpanded ? (
+              {(isExpanded || showSummaryExpanded) ? (
                 // Minimize icon
                 <path d="M19 13H5v-2h14v2z" />
               ) : (

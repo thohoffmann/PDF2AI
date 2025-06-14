@@ -18,7 +18,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
   const [validationError, setValidationError] = useState<string | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
-  const [showSummaryExpanded, setShowSummaryExpanded] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Enhanced PDF validation
@@ -161,7 +161,6 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
       }
       
       setSummary(data.summary)
-      setShowSummaryExpanded(true)
     } catch (err) {
       setValidationError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -246,43 +245,12 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
             isSuccess={!!summary}
             isError={!!validationError}
             progress={progress}
+            summary={summary}
             onSummarize={handleSummarize}
             onDelete={handleRemoveFile}
           />
 
-          {/* Expanded Summary View - same style as PDF expansion */}
-          {showSummaryExpanded && summary && (
-            <div 
-              className="relative w-full max-w-4xl mx-auto bg-white rounded-lg shadow-lg transition-all duration-500 ease-in-out"
-              style={{
-                height: "80vh",
-                margin: "20px auto",
-                padding: "24px",
-                overflow: "auto"
-              }}
-            >
-              {/* Close button */}
-              <button
-                onClick={() => setShowSummaryExpanded(false)}
-                className="absolute top-4 right-4 w-8 h-8 bg-black bg-opacity-70 rounded-full flex items-center justify-center text-white hover:bg-opacity-90 transition-all duration-200"
-                style={{ zIndex: 10 }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                  <path d="M19 13H5v-2h14v2z" />
-                </svg>
-              </button>
 
-              {/* Summary content */}
-              <div className="h-full">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 pr-12">
-                  PDF Summary
-                </h2>
-                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base">
-                  {summary}
-                </div>
-              </div>
-            </div>
-          )}
           
           {/* Only show the green card for errors */}
           {validationError && (
