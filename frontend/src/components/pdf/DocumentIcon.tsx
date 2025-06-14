@@ -157,11 +157,13 @@ export default function DocumentIcon({
     position: isExpanded ? "fixed" : "relative",
     top: isExpanded ? "50%" : "auto",
     left: isExpanded ? "50%" : "auto",
-    width: isExpanded ? "80vw" : `${width}px`,
-    height: isExpanded ? "80vh" : `${height}px`,
-    backgroundColor: "white",
-    borderRadius: "4px",
-    boxShadow: isExpanded ? "0 20px 60px rgba(0, 0, 0, 0.3)" : "0 2px 4px rgba(0, 0, 0, 0.1)",
+    width: isExpanded ? "90vw" : `${width}px`,
+    height: isExpanded ? "90vh" : `${height}px`,
+    maxWidth: isExpanded ? "800px" : "none",
+    maxHeight: isExpanded ? "90vh" : "none",
+    backgroundColor: isExpanded ? "transparent" : "white",
+    borderRadius: isExpanded ? "0" : "4px",
+    boxShadow: isExpanded ? "none" : "0 2px 4px rgba(0, 0, 0, 0.1)",
     overflow: "visible",
     cursor: isExpanded ? "default" : "pointer",
     transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -194,7 +196,9 @@ export default function DocumentIcon({
     justifyContent: "center",
     position: "relative",
     overflow: "hidden",
-    borderRadius: "4px",
+    borderRadius: isExpanded ? "0" : "4px",
+    backgroundColor: isExpanded ? "white" : "transparent",
+    boxShadow: isExpanded ? "0 20px 60px rgba(0, 0, 0, 0.3)" : "none",
   }
 
   // Expand button styles
@@ -367,9 +371,25 @@ export default function DocumentIcon({
                 transform: translateY(100%);
               }
             }
+            
+            .pdf-page-expanded {
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+              border-radius: 4px !important;
+            }
+            
+            .pdf-page-preview {
+              border-radius: 4px !important;
+            }
+            
+            .react-pdf__Page__canvas {
+              max-width: 100% !important;
+              max-height: 100% !important;
+              object-fit: contain !important;
+            }
           `}
         </style>
-        <div style={foldedCornerStyle} />
+        {/* Folded corner - only show in preview mode */}
+        {!isExpanded && <div style={foldedCornerStyle} />}
         <div style={previewContainerStyle}>
           {pdfUrl && (
             <Document
@@ -379,9 +399,11 @@ export default function DocumentIcon({
             >
               <Page
                 pageNumber={isExpanded ? currentPage : 1}
-                width={isExpanded ? Math.min(window.innerWidth * 0.75, 800) : width}
+                width={isExpanded ? undefined : width}
+                height={isExpanded ? Math.min(window.innerHeight * 0.8, 1000) : undefined}
                 renderTextLayer={isExpanded}
                 renderAnnotationLayer={isExpanded}
+                className={isExpanded ? "pdf-page-expanded" : "pdf-page-preview"}
               />
             </Document>
           )}
@@ -467,7 +489,8 @@ export default function DocumentIcon({
             </button>
           </div>
         </div>
-        <div style={statusIndicatorStyle} />
+        {/* Status indicator - only show in preview mode */}
+        {!isExpanded && <div style={statusIndicatorStyle} />}
         {hasStartedScan && <div style={scanLineStyle} />}
         {onSummarize && !isExpanded && (
           <ContextMenu
