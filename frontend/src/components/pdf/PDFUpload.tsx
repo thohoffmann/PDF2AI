@@ -245,45 +245,50 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
             isError={!!validationError}
             progress={progress}
             onSummarize={handleSummarize}
+            onDelete={handleRemoveFile}
           />
-          <Card className="bg-green-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">
-                      {selectedFile.name}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
+          
+          {/* Only show the green card during processing, with summary, or with errors */}
+          {(isProcessing || summary || validationError) && (
+            <Card className="bg-green-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">
+                        {selectedFile.name}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
                   </div>
+                  <Button
+                    variant="secondary"
+                    onClick={handleRemoveFile}
+                    className="text-green-700 hover:text-green-900 hover:bg-green-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={handleRemoveFile}
-                  className="text-green-700 hover:text-green-900 hover:bg-green-100"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
 
-              {/* Summary Section */}
-              {summary && (
-                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">Summary</h3>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{summary}</p>
-                </div>
-              )}
+                {/* Summary Section */}
+                {summary && (
+                  <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">Summary</h3>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{summary}</p>
+                  </div>
+                )}
 
-              {/* Error Message */}
-              {validationError && (
-                <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-sm text-red-600">{validationError}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                {/* Error Message */}
+                {validationError && (
+                  <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-sm text-red-600">{validationError}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

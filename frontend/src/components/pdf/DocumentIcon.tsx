@@ -315,6 +315,7 @@ export default function DocumentIcon({
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    textAlign: "center",
     display: isIntegratedExpanded ? "none" : "block",
   }
 
@@ -323,7 +324,7 @@ export default function DocumentIcon({
     position: "absolute",
     bottom: "2px",
     right: "4px",
-    fontSize: "8px",
+    fontSize: "7px",
     fontWeight: "500",
     color: "rgba(255, 255, 255, 0.8)",
     zIndex: 3,
@@ -536,21 +537,21 @@ export default function DocumentIcon({
             </button>
           </div>
         </div>
-        {/* Bottom overlay for text readability - only show in preview mode */}
-        {!isIntegratedExpanded && <div style={bottomOverlayStyle} />}
+        {/* Bottom overlay for text readability - only show in preview mode when PDF not loaded */}
+        {!isIntegratedExpanded && !numPages && <div style={bottomOverlayStyle} />}
         
         {/* Status indicator - only show in preview mode */}
         {!isIntegratedExpanded && <div style={statusIndicatorStyle} />}
         
-        {/* File name - only show in preview mode */}
-        {!isIntegratedExpanded && (
+        {/* File name - only show in preview mode when PDF not loaded */}
+        {!isIntegratedExpanded && !numPages && (
           <div style={fileNameStyle} title={file.name}>
             {file.name}
           </div>
         )}
         
-        {/* File size indicator - only show in preview mode */}
-        {!isIntegratedExpanded && (
+        {/* File size indicator - only show in preview mode when PDF not loaded */}
+        {!isIntegratedExpanded && !numPages && (
           <div style={fileSizeStyle}>
             {formatFileSize(file.size)}
           </div>
