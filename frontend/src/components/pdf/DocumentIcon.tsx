@@ -5,6 +5,8 @@ import { Document, Page, pdfjs } from "react-pdf"
 import "react-pdf/dist/esm/Page/AnnotationLayer.css"
 import "react-pdf/dist/esm/Page/TextLayer.css"
 import ContextMenu from "./context-menu"
+import PDFViewer from "./PDFViewer"
+import { createPortal } from "react-dom"
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/build/pdf.worker.entry")
@@ -39,6 +41,7 @@ export default function DocumentIcon({
   const [scanComplete, setScanComplete] = useState(false)
   const [scanPosition, setScanPosition] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const animationStartTime = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
@@ -125,9 +128,9 @@ export default function DocumentIcon({
     }
   }, [scanComplete, height])
 
-  // Keyboard navigation for expanded view
+  // Keyboard navigation for expanded view (integrated mode only)
   useEffect(() => {
-    if (!isExpanded) return
+    if (!isExpanded || showModal) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
@@ -150,29 +153,24 @@ export default function DocumentIcon({
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [isExpanded, currentPage, numPages])
+  }, [isExpanded, showModal, currentPage, numPages])
 
   // Document icon styles
+  const isIntegratedExpanded = isExpanded && !showModal
   const documentStyle: React.CSSProperties = {
-    position: isExpanded ? "fixed" : "relative",
-    top: isExpanded ? "50%" : "auto",
-    left: isExpanded ? "50%" : "auto",
-    width: isExpanded ? "90vw" : `${width}px`,
-    height: isExpanded ? "90vh" : `${height}px`,
-    maxWidth: isExpanded ? "800px" : "none",
-    maxHeight: isExpanded ? "90vh" : "none",
-    backgroundColor: isExpanded ? "transparent" : "white",
-    borderRadius: isExpanded ? "0" : "4px",
-    boxShadow: isExpanded ? "none" : "0 2px 4px rgba(0, 0, 0, 0.1)",
+    position: "relative",
+    width: isIntegratedExpanded ? "100%" : `${width}px`,
+    height: isIntegratedExpanded ? "80vh" : `${height}px`,
+    maxWidth: isIntegratedExpanded ? "800px" : "none",
+    maxHeight: isIntegratedExpanded ? "80vh" : "none",
+    margin: isIntegratedExpanded ? "20px auto" : "0",
+    backgroundColor: "white",
+    borderRadius: "4px",
+    boxShadow: isIntegratedExpanded ? "0 10px 40px rgba(0, 0, 0, 0.15)" : "0 2px 4px rgba(0, 0, 0, 0.1)",
     overflow: "visible",
-    cursor: isExpanded ? "default" : "pointer",
+    cursor: isIntegratedExpanded ? "default" : "pointer",
     transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-    transform: isExpanded 
-      ? "translate(-50%, -50%) scale(1)" 
-      : isActive 
-      ? "scale(1.05)" 
-      : "scale(1)",
-    zIndex: isExpanded ? 1000 : "auto",
+    transform: isActive && !isIntegratedExpanded ? "scale(1.05)" : "scale(1)",
   }
 
   // Folded corner styles
@@ -196,12 +194,10 @@ export default function DocumentIcon({
     justifyContent: "center",
     position: "relative",
     overflow: "hidden",
-    borderRadius: isExpanded ? "0" : "4px",
-    backgroundColor: isExpanded ? "white" : "transparent",
-    boxShadow: isExpanded ? "0 20px 60px rgba(0, 0, 0, 0.3)" : "none",
+    borderRadius: "4px",
   }
 
-  // Expand button styles
+  // Expand button styles (only show when not in modal mode)
   const expandButtonStyle: React.CSSProperties = {
     position: "absolute",
     top: "4px",
@@ -210,28 +206,16 @@ export default function DocumentIcon({
     height: "20px",
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     borderRadius: "50%",
-    display: "flex",
+    display: showModal ? "none" : "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
     zIndex: 10,
     transition: "all 0.2s ease",
-    opacity: isExpanded ? 1 : 0.7,
+    opacity: isIntegratedExpanded ? 1 : 0.7,
   }
 
-  // Backdrop styles for expanded view
-  const backdropStyle: React.CSSProperties = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    zIndex: 999,
-    opacity: isExpanded ? 1 : 0,
-    visibility: isExpanded ? "visible" : "hidden",
-    transition: "all 0.3s ease",
-  }
+
 
   // Navigation controls styles
   const navControlsStyle: React.CSSProperties = {
@@ -246,8 +230,8 @@ export default function DocumentIcon({
     borderRadius: "25px",
     padding: "8px 16px",
     zIndex: 11,
-    opacity: isExpanded && numPages && numPages > 1 ? 1 : 0,
-    visibility: isExpanded && numPages && numPages > 1 ? "visible" : "hidden",
+    opacity: isIntegratedExpanded && numPages && numPages > 1 ? 1 : 0,
+    visibility: isIntegratedExpanded && numPages && numPages > 1 ? "visible" : "hidden",
     transition: "all 0.3s ease",
   }
 
@@ -315,7 +299,7 @@ export default function DocumentIcon({
 
   const handleShow = () => {
     setShowContextMenu(false)
-    setIsExpanded(true)
+    setShowModal(true)
   }
 
   const handleExpandClick = () => {
@@ -324,9 +308,14 @@ export default function DocumentIcon({
       setIsExpanded(false)
       setCurrentPage(1)
     } else {
-      // Expanding: enter full view mode
+      // Expanding: enter integrated full view mode
       setIsExpanded(true)
     }
+  }
+
+  const handleModalClose = () => {
+    setShowModal(false)
+    setCurrentPage(1)
   }
 
   const goToPreviousPage = () => {
@@ -343,9 +332,6 @@ export default function DocumentIcon({
 
   return (
     <>
-      {/* Backdrop for expanded view */}
-      <div style={backdropStyle} onClick={() => setIsExpanded(false)} />
-      
       <div
         ref={containerRef}
         style={documentStyle}
@@ -358,8 +344,8 @@ export default function DocumentIcon({
         } ${
           isError ? "document-icon--error" : ""
         }`}
-        onMouseEnter={() => !isExpanded && setShowContextMenu(true)}
-        onMouseLeave={() => !isExpanded && setShowContextMenu(false)}
+        onMouseEnter={() => !isIntegratedExpanded && setShowContextMenu(true)}
+        onMouseLeave={() => !isIntegratedExpanded && setShowContextMenu(false)}
       >
         <style>
           {`
@@ -388,8 +374,8 @@ export default function DocumentIcon({
             }
           `}
         </style>
-        {/* Folded corner - only show in preview mode */}
-        {!isExpanded && <div style={foldedCornerStyle} />}
+        {/* Folded corner - only show in small preview mode */}
+        {!isIntegratedExpanded && <div style={foldedCornerStyle} />}
         <div style={previewContainerStyle}>
           {pdfUrl && (
             <Document
@@ -398,12 +384,12 @@ export default function DocumentIcon({
               loading={null}
             >
               <Page
-                pageNumber={isExpanded ? currentPage : 1}
-                width={isExpanded ? undefined : width}
-                height={isExpanded ? Math.min(window.innerHeight * 0.8, 1000) : undefined}
-                renderTextLayer={isExpanded}
-                renderAnnotationLayer={isExpanded}
-                className={isExpanded ? "pdf-page-expanded" : "pdf-page-preview"}
+                pageNumber={isIntegratedExpanded ? currentPage : 1}
+                width={isIntegratedExpanded ? undefined : width}
+                height={isIntegratedExpanded ? Math.min(window.innerHeight * 0.8, 1000) : undefined}
+                renderTextLayer={isIntegratedExpanded}
+                renderAnnotationLayer={isIntegratedExpanded}
+                className={isIntegratedExpanded ? "pdf-page-expanded" : "pdf-page-preview"}
               />
             </Document>
           )}
@@ -490,9 +476,9 @@ export default function DocumentIcon({
           </div>
         </div>
         {/* Status indicator - only show in preview mode */}
-        {!isExpanded && <div style={statusIndicatorStyle} />}
+        {!isIntegratedExpanded && <div style={statusIndicatorStyle} />}
         {hasStartedScan && <div style={scanLineStyle} />}
-        {onSummarize && !isExpanded && (
+        {onSummarize && !isIntegratedExpanded && (
           <ContextMenu
             isVisible={showContextMenu}
             onSummarize={handleSummarize}
@@ -500,6 +486,15 @@ export default function DocumentIcon({
           />
         )}
       </div>
+
+      {/* Modal PDF Viewer - triggered by "Show" from context menu */}
+      {showModal && createPortal(
+        <PDFViewer
+          file={file}
+          onClose={handleModalClose}
+        />,
+        document.body
+      )}
     </>
   )
 }
