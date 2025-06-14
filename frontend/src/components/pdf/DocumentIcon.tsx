@@ -193,9 +193,9 @@ export default function DocumentIcon({
     maxWidth: isIntegratedExpanded ? "800px" : "none",
     maxHeight: isIntegratedExpanded ? "80vh" : "none",
     margin: isIntegratedExpanded ? "20px auto" : "0",
-    backgroundColor: "white",
-    borderRadius: "4px",
-    boxShadow: isIntegratedExpanded ? "0 10px 40px rgba(0, 0, 0, 0.15)" : "0 2px 4px rgba(0, 0, 0, 0.1)",
+    backgroundColor: (isExpanded && !showSummaryExpanded) || showSummaryExpanded ? "transparent" : "white",
+    borderRadius: (isExpanded && !showSummaryExpanded) || showSummaryExpanded ? "0" : "4px",
+    boxShadow: isIntegratedExpanded ? "none" : "0 2px 4px rgba(0, 0, 0, 0.1)",
     overflow: "visible",
     cursor: isIntegratedExpanded ? "default" : "pointer",
     transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -226,7 +226,7 @@ export default function DocumentIcon({
     borderRadius: "4px",
   }
 
-  // Expand button styles (only show when not in modal mode)
+  // Expand button styles (only show when not in modal mode and not in PDF expanded mode)
   const expandButtonStyle: React.CSSProperties = {
     position: "absolute",
     top: "4px",
@@ -235,7 +235,7 @@ export default function DocumentIcon({
     height: "20px",
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     borderRadius: "50%",
-    display: showModal ? "none" : "flex",
+    display: showModal || (isExpanded && !showSummaryExpanded) || showSummaryExpanded ? "none" : "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
@@ -461,60 +461,186 @@ export default function DocumentIcon({
         {!isIntegratedExpanded && <div style={foldedCornerStyle} />}
         <div style={previewContainerStyle}>
           {pdfUrl && (
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              loading={null}
-            >
-              <Page
-                pageNumber={isIntegratedExpanded ? currentPage : 1}
-                width={isIntegratedExpanded ? undefined : width}
-                height={isIntegratedExpanded ? Math.min(window.innerHeight * 0.8, 1000) : undefined}
-                renderTextLayer={isIntegratedExpanded}
-                renderAnnotationLayer={isIntegratedExpanded}
-                className={isIntegratedExpanded ? "pdf-page-expanded" : "pdf-page-preview"}
-              />
-            </Document>
-          )}
-          
-          {/* Summary Content Overlay - only show when summary is expanded */}
-          {showSummaryExpanded && summary && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                borderRadius: "4px",
-                padding: "24px",
-                overflow: "auto",
-                zIndex: 5,
-              }}
-            >
-              <h2 
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "bold",
-                  color: "#111827",
-                  marginBottom: "24px",
-                  paddingRight: "40px",
-                }}
-              >
-                PDF Summary
-              </h2>
-              <div
-                style={{
-                  color: "#374151",
-                  lineHeight: "1.6",
-                  whiteSpace: "pre-wrap",
-                  fontSize: "16px",
-                }}
-              >
-                {summary}
-              </div>
-            </div>
+                        <>
+              {showSummaryExpanded && summary ? (
+                // Summary view with PDF background
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                  }}
+                >
+                  {/* Background PDF */}
+                  <Document
+                    file={pdfUrl}
+                    onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                    loading={null}
+                  >
+                    <Page
+                      pageNumber={1}
+                      height={Math.min(window.innerHeight * 0.8, 1000)}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      className="pdf-page-expanded"
+                    />
+                  </Document>
+                  
+                  {/* Summary overlay matching PDF size */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: "rgba(255, 255, 255, 0.95)",
+                      borderRadius: "4px",
+                      padding: "24px",
+                      overflow: "auto",
+                      boxSizing: "border-box",
+                      zIndex: 5,
+                    }}
+                  >
+                    <h2 
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: "bold",
+                        color: "#111827",
+                        marginBottom: "24px",
+                        paddingRight: "40px",
+                      }}
+                    >
+                      PDF Summary
+                    </h2>
+                    <div
+                      style={{
+                        color: "#374151",
+                        lineHeight: "1.6",
+                        whiteSpace: "pre-wrap",
+                        fontSize: "16px",
+                      }}
+                    >
+                      {summary}
+                    </div>
+                  </div>
+                  
+                  {/* Close button positioned on the summary */}
+                  <div 
+                    style={{
+                      position: "absolute",
+                      top: "18px",
+                      right: "8px",
+                      width: "20px",
+                      height: "20px",
+                      backgroundColor: "rgba(0, 0, 0, 0.8)",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      zIndex: 1000,
+                      transition: "all 0.2s ease",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+                    }}
+                    onClick={handleExpandClick}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.9)"
+                      e.currentTarget.style.transform = "scale(1.1)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.8)"
+                      e.currentTarget.style.transform = "scale(1)"
+                    }}
+                  >
+                    <svg 
+                      width="12" 
+                      height="12" 
+                      viewBox="0 0 24 24" 
+                      fill="white"
+                      style={{ transition: "transform 0.2s ease" }}
+                    >
+                      <path d="M19 13H5v-2h14v2z" />
+                    </svg>
+                  </div>
+                </div>
+              ) : isExpanded ? (
+                // Expanded PDF view
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                  }}
+                >
+                  <Document
+                    file={pdfUrl}
+                    onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                    loading={null}
+                  >
+                    <Page
+                      pageNumber={currentPage}
+                      height={Math.min(window.innerHeight * 0.8, 1000)}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      className="pdf-page-expanded"
+                    />
+                  </Document>
+                  
+                  {/* Close button positioned on the PDF document */}
+                  <div 
+                    style={{
+                      position: "absolute",
+                      top: "18px",
+                      right: "8px",
+                      width: "20px",
+                      height: "20px",
+                      backgroundColor: "rgba(0, 0, 0, 0.8)",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      zIndex: 1000,
+                      transition: "all 0.2s ease",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+                    }}
+                    onClick={handleExpandClick}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.9)"
+                      e.currentTarget.style.transform = "scale(1.1)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)"
+                      e.currentTarget.style.transform = "scale(1)"
+                    }}
+                  >
+                    <svg 
+                      width="12" 
+                      height="12" 
+                      viewBox="0 0 24 24" 
+                      fill="white"
+                      style={{ transition: "transform 0.2s ease" }}
+                    >
+                      <path d="M19 13H5v-2h14v2z" />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                // Preview mode
+                <Document
+                  file={pdfUrl}
+                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                  loading={null}
+                >
+                  <Page
+                    pageNumber={1}
+                    width={width}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="pdf-page-preview"
+                  />
+                </Document>
+              )}
+            </>
           )}
           
           {/* Expand/Collapse Button */}
