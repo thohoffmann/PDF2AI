@@ -50,7 +50,11 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
     <div style={contextMenuStyle}>
       <div
         style={menuItemStyle}
-        onClick={onSummarize}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onSummarize()
+        }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#f3f4f6"
         }}
@@ -77,7 +81,11 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
       <div style={menuDividerStyle} />
       <div
         style={menuItemStyle}
-        onClick={onShow}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onShow()
+        }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#f3f4f6"
         }}
@@ -103,7 +111,11 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
       <div style={menuDividerStyle} />
       <div
         style={menuItemStyle}
-        onClick={onDelete}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onDelete()
+        }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#fef2f2"
           e.currentTarget.style.color = "#dc2626"

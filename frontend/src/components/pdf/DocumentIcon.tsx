@@ -52,6 +52,13 @@ export default function DocumentIcon({
   const animationFrameRef = useRef<number | undefined>(undefined)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Drag functionality state
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [hasDragged, setHasDragged] = useState(false)
+  const dragStartPos = useRef({ x: 0, y: 0 })
 
   // Size configurations
   const sizeConfig = {
@@ -118,17 +125,17 @@ export default function DocumentIcon({
 
   // Detect when summary is actually complete and trigger fast completion
   useEffect(() => {
-    if (hasStartedScan && isSuccess && !scanComplete) {
-      setScanComplete(true)
+    if (hasStartedScan && isSuccess && summary && !scanComplete) {
+      // Add a small delay to let the scan animation show for a bit
+      const timer = setTimeout(() => {
+        setScanComplete(true)
+      }, 1000) // 1 second minimum scan time
+      
+      return () => clearTimeout(timer)
     }
-  }, [hasStartedScan, isSuccess, scanComplete])
+  }, [hasStartedScan, isSuccess, summary, scanComplete])
 
-  // Auto-expand summary when it becomes available
-  useEffect(() => {
-    if (summary && isSuccess) {
-      setShowSummaryExpanded(true)
-    }
-  }, [summary, isSuccess])
+
 
   // Handle scan completion
   useEffect(() => {
@@ -141,8 +148,15 @@ export default function DocumentIcon({
       // Immediately hide scan line when complete
       setHasStartedScan(false)
       setScanPosition(0)
+      
+      // Auto-expand summary if available
+      if (summary && isSuccess) {
+        setTimeout(() => {
+          setShowSummaryExpanded(true)
+        }, 300) // Small delay after scan line disappears
+      }
     }
-  }, [scanComplete, height])
+  }, [scanComplete, height, summary, isSuccess])
 
   // Keyboard navigation for expanded view (integrated mode only)
   useEffect(() => {
@@ -179,8 +193,10 @@ export default function DocumentIcon({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [isExpanded, showSummaryExpanded, showModal, currentPage, numPages])
 
-  // Document icon styles
-  const isIntegratedExpanded = (isExpanded && !showModal) || showSummaryExpanded
+  // Document icon styles  
+  // Only expand if we're not currently scanning
+  const isIntegratedExpanded = (isExpanded && !showModal) || (showSummaryExpanded && !hasStartedScan)
+  console.log('Render state:', { isIntegratedExpanded, isExpanded, showSummaryExpanded, hasStartedScan, showModal })
   const documentStyle: React.CSSProperties = {
     position: "relative",
     width: isIntegratedExpanded ? "100%" : `${width}px`,
@@ -192,9 +208,12 @@ export default function DocumentIcon({
     borderRadius: (isExpanded && !showSummaryExpanded) || showSummaryExpanded ? "0" : "4px",
     boxShadow: isIntegratedExpanded ? "none" : "0 2px 4px rgba(0, 0, 0, 0.1)",
     overflow: "visible",
-    cursor: isIntegratedExpanded ? "default" : "pointer",
-    transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-    transform: isActive && !isIntegratedExpanded ? "scale(1.05)" : "scale(1)",
+    cursor: isIntegratedExpanded ? "default" : isDragging ? "grabbing" : "grab",
+    transition: isDragging ? "none" : "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+    transform: isIntegratedExpanded 
+      ? "scale(1)" 
+      : `translate(${dragPosition.x}px, ${dragPosition.y}px) ${isActive ? "scale(1.05)" : "scale(1)"}`,
+    zIndex: isDragging ? 1000 : isIntegratedExpanded ? "auto" : 10,
   }
 
   // Folded corner styles
@@ -372,7 +391,14 @@ export default function DocumentIcon({
     setShowModal(true)
   }
 
-  const handleExpandClick = () => {
+  const handleExpandClick = (e?: React.MouseEvent) => {
+    // Prevent expand if we just finished dragging
+    if (e && hasDragged) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    
     if (showSummaryExpanded) {
       // Close summary expansion
       setShowSummaryExpanded(false)
@@ -408,6 +434,78 @@ export default function DocumentIcon({
     }
   }
 
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only allow dragging in preview mode (not expanded)
+    if (isIntegratedExpanded) return
+    
+    e.preventDefault()
+    setIsDragging(true)
+    setHasDragged(false)
+    
+    // Store the initial mouse position and current drag position
+    dragStartPos.current = { x: e.clientX, y: e.clientY }
+    
+    // Calculate offset from mouse to current element position
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - (rect.left + dragPosition.x),
+        y: e.clientY - (rect.top + dragPosition.y)
+      })
+    }
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+    
+    e.preventDefault()
+    
+    // Check if we've moved enough to consider it a drag
+    const deltaX = Math.abs(e.clientX - dragStartPos.current.x)
+    const deltaY = Math.abs(e.clientY - dragStartPos.current.y)
+    
+    if (deltaX > 5 || deltaY > 5) {
+      setHasDragged(true)
+    }
+    
+    // Calculate movement delta from start position
+    const deltaFromStart = {
+      x: e.clientX - dragStartPos.current.x,
+      y: e.clientY - dragStartPos.current.y
+    }
+    
+    // Update position by adding the delta to the starting position
+    setDragPosition(prev => ({
+      x: prev.x + deltaFromStart.x,
+      y: prev.y + deltaFromStart.y
+    }))
+    
+    // Update the start position for next movement calculation
+    dragStartPos.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    // Reset hasDragged after a short delay to allow click handlers to check it
+    setTimeout(() => setHasDragged(false), 100)
+  }
+
+
+
+  // Add global mouse event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragOffset])
+
   return (
     <>
       <div
@@ -424,6 +522,12 @@ export default function DocumentIcon({
         }`}
         onMouseEnter={() => !isIntegratedExpanded && setShowContextMenu(true)}
         onMouseLeave={() => !isIntegratedExpanded && setShowContextMenu(false)}
+        onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          if (!hasDragged && !isIntegratedExpanded) {
+            handleExpandClick(e)
+          }
+        }}
       >
         <style>
           {`
