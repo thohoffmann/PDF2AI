@@ -7,9 +7,16 @@ interface ContextMenuProps {
   onSummarize: () => void
   onShow: () => void
   onDelete: () => void
+  onClose: () => void
 }
 
-export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }: ContextMenuProps) {
+export default function ContextMenu({
+  isVisible,
+  onSummarize,
+  onShow,
+  onDelete,
+  onClose,
+}: ContextMenuProps) {
   // Context menu styles
   const contextMenuStyle: React.CSSProperties = {
     position: "absolute",
@@ -54,6 +61,7 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
           e.preventDefault()
           e.stopPropagation()
           onSummarize()
+          onClose()
         }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#f3f4f6"
@@ -85,6 +93,7 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
           e.preventDefault()
           e.stopPropagation()
           onShow()
+          onClose()
         }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#f3f4f6"
@@ -115,6 +124,7 @@ export default function ContextMenu({ isVisible, onSummarize, onShow, onDelete }
           e.preventDefault()
           e.stopPropagation()
           onDelete()
+          onClose()
         }}
         onMouseOver={(e) => {
           e.currentTarget.style.backgroundColor = "#fef2f2"

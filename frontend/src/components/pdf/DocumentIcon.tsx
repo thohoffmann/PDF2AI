@@ -380,6 +380,8 @@ export default function DocumentIcon({
     zIndex: 3,
   }
 
+  const [isHovered, setIsHovered] = useState(false)
+
   const handleSummarize = () => {
     setHasStartedScan(true)
     setScanComplete(false)
@@ -520,8 +522,8 @@ export default function DocumentIcon({
         } ${
           isError ? "document-icon--error" : ""
         }`}
-        onMouseEnter={() => !isIntegratedExpanded && setShowContextMenu(true)}
-        onMouseLeave={() => !isIntegratedExpanded && setShowContextMenu(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
           if (!hasDragged && !isIntegratedExpanded) {
@@ -844,12 +846,48 @@ export default function DocumentIcon({
         )}
         
         {hasStartedScan && <div style={scanLineStyle} />}
+        {/* Menu trigger button */}
+        {!isIntegratedExpanded && (
+          <div 
+            style={{
+              position: "absolute",
+              top: "32px",
+              right: "4px",
+              width: "20px",
+              height: "20px",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              zIndex: 10,
+              transition: "all 0.2s ease",
+              opacity: isHovered ? 0.7 : 0,
+            }}
+            onMouseEnter={() => setShowContextMenu(true)}
+            onMouseLeave={() => setShowContextMenu(false)}
+          >
+            <svg 
+              width="12" 
+              height="12" 
+              viewBox="0 0 24 24" 
+              fill="white"
+              style={{ transition: "transform 0.2s ease" }}
+            >
+              <circle cx="12" cy="5" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="12" cy="19" r="2"/>
+            </svg>
+          </div>
+        )}
         {onSummarize && !isIntegratedExpanded && (
           <ContextMenu
             isVisible={showContextMenu}
             onSummarize={handleSummarize}
             onShow={handleShow}
             onDelete={handleDelete}
+            onClose={() => setShowContextMenu(false)}
           />
         )}
       </div>
