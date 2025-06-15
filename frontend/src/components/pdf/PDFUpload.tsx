@@ -5,7 +5,6 @@ import { Upload, FileText, X, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import DocumentIcon from './DocumentIcon'
-import ContextMenu from './context-menu'
 
 interface PDFUploadProps {
   onFileSelect: (file: File) => void
@@ -19,9 +18,10 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
   const [validationError, setValidationError] = useState<string | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
-  const [showContextMenu, setShowContextMenu] = useState(false)
+  const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Enhanced PDF validation
   const validatePDFFile = async (file: File): Promise<{ isValid: boolean; error?: string }> => {
@@ -120,6 +120,9 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
       
       const files = Array.from(e.dataTransfer?.files || [])
       if (files.length === 0) return
+
+      // Calculate position relative to viewport
+      setDropPosition({ x: e.clientX, y: e.clientY })
       
       const file = files[0]
       processFile(file)
@@ -138,6 +141,13 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
       document.removeEventListener('drop', handleGlobalDrop)
     }
   }, [])
+
+  // Reset drop position when file is removed
+  useEffect(() => {
+    if (!selectedFile) {
+      setDropPosition(null)
+    }
+  }, [selectedFile])
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -229,7 +239,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
         `}
       </style>
 
-      <div className={`w-full relative ${className || ''}`.trim()}>
+      <div ref={containerRef} className={`w-full relative min-h-screen ${className || ''}`.trim()}>
         {/* Background upload area - always visible with transparency - lowest z-index */}
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none min-h-screen z-0">
           <div className="text-center">
@@ -254,136 +264,92 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
         />
 
         {/* Content area - shows on top of background with higher z-index */}
-        {selectedFile ? (
-          <div className="relative z-20 flex items-start justify-center bg-white bg-opacity-95 p-8">
-            <div className="space-y-4 max-w-2xl">
-              <DocumentIcon
-                file={selectedFile}
-                size="lg"
-                isProcessing={isProcessing}
-                isSuccess={!!summary}
-                isError={!!validationError}
-                progress={progress}
-                summary={summary}
-                onSummarize={handleSummarize}
-                onDelete={handleRemoveFile}
-              />
+        {selectedFile && (
+          <div 
+            className="absolute z-20 bg-white bg-opacity-95 p-4 rounded-lg shadow-lg transition-all duration-300"
+            style={{
+              position: 'fixed',
+              left: dropPosition ? `${dropPosition.x}px` : '50%',
+              top: dropPosition ? `${dropPosition.y}px` : '50%',
+              transform: 'translate(-50%, -50%)',
+              maxWidth: '600px',
+              width: 'auto',
+              minWidth: '300px',
+            }}
+          >
+            <DocumentIcon
+              file={selectedFile}
+              size="lg"
+              isProcessing={isProcessing}
+              isSuccess={!!summary}
+              isError={!!validationError}
+              progress={progress}
+              summary={summary}
+              onSummarize={handleSummarize}
+              onDelete={handleRemoveFile}
+            />
 
-              {/* Only show the green card for errors */}
-              {validationError && (
-                <Card className="bg-green-50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-900">
-                            {selectedFile.name}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                        </div>
+            {/* Only show the green card for errors */}
+            {validationError && (
+              <Card className="bg-green-50 mt-4">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedFile.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
                       </div>
-                      <Button
-                        variant="secondary"
-                        onClick={handleRemoveFile}
-                        className="text-green-700 hover:text-green-900 hover:bg-green-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
+                    <Button
+                      variant="secondary"
+                      onClick={handleRemoveFile}
+                      className="text-green-700 hover:text-green-900 hover:bg-green-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-                    {/* Summary Section */}
-                    {summary && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                        <h3 className="text-sm font-medium text-gray-900 mb-2">Summary</h3>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{summary}</p>
-                      </div>
-                    )}
+                  {/* Summary Section */}
+                  {summary && (
+                    <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">Summary</h3>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{summary}</p>
+                    </div>
+                  )}
 
-                    {/* Error Message */}
-                    {validationError && (
-                      <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                        <p className="text-sm text-red-600">{validationError}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                  {/* Error Message */}
+                  {validationError && (
+                    <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                      <p className="text-sm text-red-600">{validationError}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
-              {/* Context Menu Trigger Button */}
-              <div className="relative">
-                <div 
-                  style={{
-                    position: "absolute",
-                    top: "4px",
-                    right: "4px",
-                    width: "20px",
-                    height: "20px",
-                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    zIndex: 10,
-                    transition: "all 0.2s ease",
-                    opacity: 0.7,
-                  }}
-                  onMouseEnter={() => setShowContextMenu(true)}
-                  onMouseDown={(e) => {
-                    e.stopPropagation() // Prevent drag from starting
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation() // Prevent expand click
-                  }}
-                >
-                  <svg 
-                    width="12" 
-                    height="12" 
-                    viewBox="0 0 24 24" 
-                    fill="white"
-                    style={{ transition: "transform 0.2s ease" }}
-                  >
-                    {/* Three dots menu icon */}
-                    <circle cx="12" cy="5" r="2"/>
-                    <circle cx="12" cy="12" r="2"/>
-                    <circle cx="12" cy="19" r="2"/>
-                  </svg>
-                </div>
-                {handleSummarize && (
-                  <ContextMenu
-                    isVisible={showContextMenu}
-                    onSummarize={handleSummarize}
-                    onShow={() => {}}
-                    onDelete={handleRemoveFile}
-                    onMouseEnter={() => setShowContextMenu(true)}
-                    onMouseLeave={() => setShowContextMenu(false)}
-                    onClose={() => setShowContextMenu(false)}
-                  />
-                )}
-              </div>
+        {/* Error messages when no file selected */}
+        {!selectedFile && validationError && (
+          <div className="fixed z-20 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white bg-opacity-95">
+            <div className="max-w-md mx-auto">
+              <Card className="bg-red-50 border-red-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-red-900">Upload Error</p>
+                      <p className="text-sm text-red-700">{validationError}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        ) : (
-          /* Error messages when no file selected */
-          validationError && (
-            <div className="relative z-20 min-h-screen flex items-center justify-center bg-white bg-opacity-95">
-              <div className="max-w-md mx-auto">
-                <Card className="bg-red-50 border-red-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-red-900">Upload Error</p>
-                        <p className="text-sm text-red-700">{validationError}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )
         )}
       </div>
     </>
