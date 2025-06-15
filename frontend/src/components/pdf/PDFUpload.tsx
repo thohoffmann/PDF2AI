@@ -5,6 +5,7 @@ import { Upload, FileText, X, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import DocumentIcon from './DocumentIcon'
+import ContextMenu from './context-menu'
 
 interface PDFUploadProps {
   onFileSelect: (file: File) => void
@@ -18,6 +19,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
   const [validationError, setValidationError] = useState<string | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  const [showContextMenu, setShowContextMenu] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -204,15 +206,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
     <>
       {/* Full-screen drag overlay */}
       {isDragOver && (
-        <div className="fixed inset-0 bg-blue-500 bg-opacity-20 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 rounded-full p-8 bg-blue-100 inline-block">
-              <Upload className="h-16 w-16 text-blue-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-blue-900 mb-2">Drop your PDF file</h2>
-            <p className="text-blue-700">Release to upload</p>
-          </div>
-        </div>
+        <div className="fixed inset-0 bg-blue-500 bg-opacity-20 backdrop-blur-sm z-50" />
       )}
 
       {/* CSS to hide drag ghost image */}
@@ -261,8 +255,8 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
 
         {/* Content area - shows on top of background with higher z-index */}
         {selectedFile ? (
-          <div className="relative z-20 min-h-screen flex items-center justify-center bg-white bg-opacity-95">
-            <div className="space-y-4 max-w-2xl mx-auto">
+          <div className="relative z-20 flex items-start justify-center bg-white bg-opacity-95 p-8">
+            <div className="space-y-4 max-w-2xl">
               <DocumentIcon
                 file={selectedFile}
                 size="lg"
@@ -316,6 +310,59 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
                   </CardContent>
                 </Card>
               )}
+
+              {/* Context Menu Trigger Button */}
+              <div className="relative">
+                <div 
+                  style={{
+                    position: "absolute",
+                    top: "4px",
+                    right: "4px",
+                    width: "20px",
+                    height: "20px",
+                    backgroundColor: "rgba(0, 0, 0, 0.7)",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    zIndex: 10,
+                    transition: "all 0.2s ease",
+                    opacity: 0.7,
+                  }}
+                  onMouseEnter={() => setShowContextMenu(true)}
+                  onMouseDown={(e) => {
+                    e.stopPropagation() // Prevent drag from starting
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation() // Prevent expand click
+                  }}
+                >
+                  <svg 
+                    width="12" 
+                    height="12" 
+                    viewBox="0 0 24 24" 
+                    fill="white"
+                    style={{ transition: "transform 0.2s ease" }}
+                  >
+                    {/* Three dots menu icon */}
+                    <circle cx="12" cy="5" r="2"/>
+                    <circle cx="12" cy="12" r="2"/>
+                    <circle cx="12" cy="19" r="2"/>
+                  </svg>
+                </div>
+                {handleSummarize && (
+                  <ContextMenu
+                    isVisible={showContextMenu}
+                    onSummarize={handleSummarize}
+                    onShow={() => {}}
+                    onDelete={handleRemoveFile}
+                    onMouseEnter={() => setShowContextMenu(true)}
+                    onMouseLeave={() => setShowContextMenu(false)}
+                    onClose={() => setShowContextMenu(false)}
+                  />
+                )}
+              </div>
             </div>
           </div>
         ) : (
