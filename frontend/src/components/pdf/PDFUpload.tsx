@@ -236,15 +236,16 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
       </style>
 
       <div className={`w-full relative ${className || ''}`.trim()}>
-        {/* Background upload area - always visible with transparency */}
-        <div className="fixed inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-          <div className={`mb-6 rounded-full p-8 transition-all duration-200 ${isProcessing ? 'bg-green-100' : 'bg-gray-100'} opacity-50`.trim()}>
-            <Upload className={`h-16 w-16 transition-colors duration-200 ${isProcessing ? 'text-green-600' : 'text-gray-600'}`.trim()} />
+        {/* Background upload area - always visible with transparency - lowest z-index */}
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none min-h-screen z-0">
+          <div className="text-center">
+            <div className={`rounded-full p-8 transition-all duration-200 ${isProcessing ? 'bg-green-100' : 'bg-gray-100'} opacity-50`.trim()}>
+              <Upload className={`h-16 w-16 transition-colors duration-200 ${isProcessing ? 'text-green-600' : 'text-gray-600'}`.trim()} />
+            </div>
+            <h2 className="mt-4 text-gray-600" style={{ fontSize: '12px' }}>
+              {isProcessing ? "Processing PDF..." : "Drag and Drop your PDF File anywhere."}
+            </h2>
           </div>
-          
-          <h2 className="text-3xl font-bold text-gray-900 opacity-50">
-            {isProcessing ? "Processing PDF..." : "Drag and Drop your PDF File anywhere!"}
-          </h2>
         </div>
 
         {/* Hidden file input for programmatic access */}
@@ -258,9 +259,9 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
           ref={fileInputRef}
         />
 
-        {/* Content area - shows on top of background */}
+        {/* Content area - shows on top of background with higher z-index */}
         {selectedFile ? (
-          <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className="relative z-20 min-h-screen flex items-center justify-center bg-white bg-opacity-95">
             <div className="space-y-4 max-w-2xl mx-auto">
               <DocumentIcon
                 file={selectedFile}
@@ -320,7 +321,7 @@ export function PDFUpload({ onFileSelect, selectedFile, className }: PDFUploadPr
         ) : (
           /* Error messages when no file selected */
           validationError && (
-            <div className="relative z-10 min-h-screen flex items-center justify-center">
+            <div className="relative z-20 min-h-screen flex items-center justify-center bg-white bg-opacity-95">
               <div className="max-w-md mx-auto">
                 <Card className="bg-red-50 border-red-200">
                   <CardContent className="p-4">
