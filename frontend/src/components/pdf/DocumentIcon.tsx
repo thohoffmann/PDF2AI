@@ -381,6 +381,31 @@ export default function DocumentIcon({
   }
 
   const [isHovered, setIsHovered] = useState(false)
+  const [menuCloseTimeout, setMenuCloseTimeout] = useState<NodeJS.Timeout | null>(null)
+
+  const handleMenuMouseEnter = () => {
+    if (menuCloseTimeout) {
+      clearTimeout(menuCloseTimeout)
+      setMenuCloseTimeout(null)
+    }
+    setShowContextMenu(true)
+  }
+
+  const handleMenuMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setShowContextMenu(false)
+    }, 300) // 300ms delay before closing
+    setMenuCloseTimeout(timeout)
+  }
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (menuCloseTimeout) {
+        clearTimeout(menuCloseTimeout)
+      }
+    }
+  }, [menuCloseTimeout])
 
   const handleSummarize = () => {
     setHasStartedScan(true)
@@ -865,8 +890,8 @@ export default function DocumentIcon({
               transition: "all 0.2s ease",
               opacity: isHovered ? 0.7 : 0,
             }}
-            onMouseEnter={() => setShowContextMenu(true)}
-            onMouseLeave={() => setShowContextMenu(false)}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
           >
             <svg 
               width="12" 
@@ -888,6 +913,8 @@ export default function DocumentIcon({
             onShow={handleShow}
             onDelete={handleDelete}
             onClose={() => setShowContextMenu(false)}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
           />
         )}
       </div>

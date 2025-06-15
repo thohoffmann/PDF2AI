@@ -8,6 +8,8 @@ interface ContextMenuProps {
   onShow: () => void
   onDelete: () => void
   onClose: () => void
+  onMouseEnter: () => void
+  onMouseLeave: () => void
 }
 
 export default function ContextMenu({
@@ -16,6 +18,8 @@ export default function ContextMenu({
   onShow,
   onDelete,
   onClose,
+  onMouseEnter,
+  onMouseLeave,
 }: ContextMenuProps) {
   // Context menu styles
   const contextMenuStyle: React.CSSProperties = {
@@ -54,7 +58,11 @@ export default function ContextMenu({
   }
 
   return (
-    <div style={contextMenuStyle}>
+    <div 
+      style={contextMenuStyle}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <div
         style={menuItemStyle}
         onClick={(e) => {
